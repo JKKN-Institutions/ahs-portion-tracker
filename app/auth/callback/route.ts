@@ -14,27 +14,21 @@ export async function GET(request: Request) {
       // Check if user exists in our users table
       const { data: existingUser } = await supabase
         .from('users')
-        .select('role')
+        .select('role, is_active')
         .eq('id', data.user.id)
         .single();
 
-      // If user doesn't exist in users table, create them
+      // If user doesn't exist in users table, deny access
       if (!existingUser) {
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: data.user.email!,
-            first_name: data.user.user_metadata?.full_name?.split(' ')[0] || data.user.user_metadata?.name?.split(' ')[0] || 'User',
-            last_name: data.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || data.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
-            role: 'facilitator',
-          });
+        // Sign out the user since they're not authorized
+        await supabase.auth.signOut();
+        return NextResponse.redirect(`${origin}/auth/login?error=unauthorized&message=You are not authorized to access this system. Please contact an administrator.`);
+      }
 
-        if (insertError) {
-          console.error('Error creating user profile:', insertError);
-        }
-
-        return NextResponse.redirect(`${origin}/dashboard`);
+      // Check if user is active
+      if (!existingUser.is_active) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(`${origin}/auth/login?error=inactive&message=Your account has been deactivated. Please contact an administrator.`);
       }
 
       // Redirect based on role to their specific dashboard

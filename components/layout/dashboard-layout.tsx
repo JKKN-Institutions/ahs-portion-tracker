@@ -44,26 +44,22 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
           .single();
 
         if (userError || !userData) {
-          // User profile doesn't exist, create one with default role
-          const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: authUser.id,
-              email: authUser.email,
-              first_name: authUser.user_metadata?.first_name || 'User',
-              last_name: authUser.user_metadata?.last_name || '',
-              role: 'facilitator',
-              is_active: true,
-            })
-            .select()
-            .single();
-
-          if (newUser) {
-            setUser(newUser);
-          }
-        } else {
-          setUser(userData);
+          // User profile doesn't exist - deny access
+          console.error('Unauthorized access attempt:', authUser.email);
+          await supabase.auth.signOut();
+          router.push('/auth/login?error=unauthorized&message=You are not authorized to access this system. Please contact an administrator.');
+          return;
         }
+
+        // Check if user is active
+        if (!userData.is_active) {
+          console.error('Inactive user login attempt:', authUser.email);
+          await supabase.auth.signOut();
+          router.push('/auth/login?error=inactive&message=Your account has been deactivated. Please contact an administrator.');
+          return;
+        }
+
+        setUser(userData);
 
         const { data: yearsData } = await supabase
           .from('academic_years')
