@@ -277,7 +277,7 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
           onAcademicYearChange={handleAcademicYearChange}
           onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
-        <main className="p-1.5 xs:p-2 sm:p-4 md:p-6 lg:p-8 pb-20 md:pb-8">
+        <main className="p-1.5 xs:p-2 sm:p-4 md:p-6 lg:p-8 pb-28 md:pb-8">
           <div className="animate-fade-in-up">
             {children}
           </div>
