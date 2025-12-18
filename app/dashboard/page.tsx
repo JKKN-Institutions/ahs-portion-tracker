@@ -602,23 +602,23 @@ export default function UnifiedDashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="facilitators" className="glass-card rounded-2xl p-4 sm:p-6">
-          <TabsList className="bg-white/50 dark:bg-gray-800/50 border border-white/30 dark:border-gray-700 rounded-xl p-1 mb-6 flex-wrap justify-start overflow-x-auto">
-            <TabsTrigger value="facilitators" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all">
-              <Users className="h-4 w-4 mr-2" />
+          <TabsList className="bg-white/50 dark:bg-gray-800/50 border border-white/30 dark:border-gray-700 rounded-xl p-1 mb-6 grid grid-cols-2 md:flex md:flex-wrap gap-1 h-auto">
+            <TabsTrigger value="facilitators" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Facilitators
             </TabsTrigger>
             {/* All Portions and Overdue tabs - only for admin and facilitator, not super_admin */}
             {userRole !== 'super_admin' && (
               <>
-                <TabsTrigger value="portions" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all">
-                  <BookOpen className="h-4 w-4 mr-2" />
+                <TabsTrigger value="portions" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                   All Portions
                 </TabsTrigger>
-                <TabsTrigger value="overdue" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
+                <TabsTrigger value="overdue" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                   Overdue
                   {overduePortions > 0 && (
-                    <Badge variant="destructive" className="ml-2 animate-pulse">
+                    <Badge variant="destructive" className="ml-1 sm:ml-2 animate-pulse text-[10px] sm:text-xs px-1">
                       {overduePortions}
                     </Badge>
                   )}
@@ -626,12 +626,12 @@ export default function UnifiedDashboard() {
               </>
             )}
             {/* Assessments and Projects tabs - visible to all roles */}
-            <TabsTrigger value="assessments" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all">
-              <ClipboardCheck className="h-4 w-4 mr-2" />
+            <TabsTrigger value="assessments" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <ClipboardCheck className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Assessments
             </TabsTrigger>
-            <TabsTrigger value="projects" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all">
-              <FolderKanban className="h-4 w-4 mr-2" />
+            <TabsTrigger value="projects" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <FolderKanban className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Projects
             </TabsTrigger>
           </TabsList>
