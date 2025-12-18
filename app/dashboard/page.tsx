@@ -602,23 +602,23 @@ export default function UnifiedDashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="facilitators" className="glass-card rounded-2xl p-4 sm:p-6">
-          <TabsList className="bg-white/50 dark:bg-gray-800/50 border border-white/30 dark:border-gray-700 rounded-xl p-1 mb-6 grid grid-cols-2 md:flex md:flex-wrap gap-1 h-auto">
-            <TabsTrigger value="facilitators" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          <TabsList className="bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 border border-gray-200/40 dark:border-gray-700/40 rounded-2xl p-2 mb-6 grid grid-cols-2 md:flex md:flex-wrap gap-2 h-auto backdrop-blur-md shadow-sm">
+            <TabsTrigger value="facilitators" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#0b6d41] data-[state=active]:to-[#0a5c37] data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold px-3 py-2.5 sm:px-4 sm:py-3 border border-transparent data-[state=active]:border-green-600/20">
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Facilitators
             </TabsTrigger>
             {/* All Portions and Overdue tabs - only for admin and facilitator, not super_admin */}
             {userRole !== 'super_admin' && (
               <>
-                <TabsTrigger value="portions" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <TabsTrigger value="portions" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#0b6d41] data-[state=active]:to-[#0a5c37] data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold px-3 py-2.5 sm:px-4 sm:py-3 border border-transparent data-[state=active]:border-green-600/20">
+                  <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   All Portions
                 </TabsTrigger>
-                <TabsTrigger value="overdue" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <TabsTrigger value="overdue" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#0b6d41] data-[state=active]:to-[#0a5c37] data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold px-3 py-2.5 sm:px-4 sm:py-3 border border-transparent data-[state=active]:border-green-600/20">
+                  <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   Overdue
                   {overduePortions > 0 && (
-                    <Badge variant="destructive" className="ml-1 sm:ml-2 animate-pulse text-[10px] sm:text-xs px-1">
+                    <Badge variant="destructive" className="ml-1.5 sm:ml-2 animate-pulse text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full">
                       {overduePortions}
                     </Badge>
                   )}
@@ -626,12 +626,12 @@ export default function UnifiedDashboard() {
               </>
             )}
             {/* Assessments and Projects tabs - visible to all roles */}
-            <TabsTrigger value="assessments" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <ClipboardCheck className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <TabsTrigger value="assessments" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#0b6d41] data-[state=active]:to-[#0a5c37] data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold px-3 py-2.5 sm:px-4 sm:py-3 border border-transparent data-[state=active]:border-green-600/20">
+              <ClipboardCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Assessments
             </TabsTrigger>
-            <TabsTrigger value="projects" className="data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white rounded-lg transition-all text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <FolderKanban className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <TabsTrigger value="projects" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#0b6d41] data-[state=active]:to-[#0a5c37] data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold px-3 py-2.5 sm:px-4 sm:py-3 border border-transparent data-[state=active]:border-green-600/20">
+              <FolderKanban className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Projects
             </TabsTrigger>
           </TabsList>
