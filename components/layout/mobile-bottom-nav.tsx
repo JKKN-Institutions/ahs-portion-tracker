@@ -96,35 +96,38 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       role="navigation"
       aria-label="Mobile bottom navigation"
     >
-      {/* Sleek Floating Bottom Navigation Container */}
-      <div className="relative bg-white/90 dark:bg-gray-900/90 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)] border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-xl overflow-hidden">
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-50/20 to-transparent dark:from-gray-950/10 pointer-events-none" />
+      {/* Ultra Sleek Minimal Bottom Navigation - Same for All Roles */}
+      <div className="relative bg-white/90 dark:bg-gray-900/90 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-200/30 dark:border-gray-700/30 backdrop-blur-md overflow-hidden">
+        {/* Minimal gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-purple-50/10 to-transparent dark:from-purple-950/5 pointer-events-none" />
 
-        <div className="relative flex items-center justify-around h-[54px] px-1">
+        <div className="relative flex items-center justify-around h-[40px] px-1">
           {navItems.map((item, index) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            // Fix: Only highlight the most specific matching tab
+            const isActive =
+              pathname === item.href || // Exact match
+              (item.href !== '/dashboard' && item.href !== '/dashboard/super-admin' && item.href !== '/dashboard/learner' && pathname.startsWith(item.href + '/'));
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'relative flex flex-col items-center justify-center flex-1 h-full px-0.5 py-1 min-w-0',
-                  'transition-all duration-200 rounded-full group',
-                  'focus:outline-none focus:ring-1 focus:ring-purple-400',
+                  'relative flex flex-col items-center justify-center flex-1 h-full px-0.5 py-0.5 min-w-0 gap-0.5',
+                  'transition-all duration-200 ease-out rounded-full group',
+                  'focus:outline-none focus:ring-1 focus:ring-purple-400/30',
                   isActive
                     ? 'opacity-100'
-                    : 'opacity-55 hover:opacity-90 active:scale-95'
+                    : 'opacity-60 hover:opacity-90 active:scale-95'
                 )}
                 aria-label={item.title}
                 aria-current={isActive ? 'page' : undefined}
               >
-                {/* Active Background - Compact Pill Shape */}
+                {/* Active Background - Compact Gradient Pill */}
                 {isActive && (
-                  <div className="absolute inset-y-1 inset-x-0.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full -z-10 shadow-md shadow-purple-500/25" />
+                  <div className="absolute inset-y-0.5 inset-x-0.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full -z-10 shadow-sm shadow-purple-500/20" />
                 )}
 
-                {/* Icon Container - Sleek Size */}
+                {/* Icon Container - Minimal */}
                 <div
                   className={cn(
                     'flex items-center justify-center transition-all duration-200',
@@ -136,7 +139,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                   <item.icon
                     className={cn(
                       'transition-all duration-200',
-                      'w-5 h-5', // 20px - sleek icon size
+                      'w-[15px] h-[15px]', // 15px - ultra minimal icon
                       isActive ? 'scale-105' : 'scale-100 group-hover:scale-105'
                     )}
                     strokeWidth={isActive ? 2.5 : 2}
@@ -144,10 +147,10 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                   />
                 </div>
 
-                {/* Label Text - Compact */}
+                {/* Label Text - Minimal */}
                 <span
                   className={cn(
-                    'text-[9px] font-semibold truncate w-full text-center leading-tight mt-0.5',
+                    'text-[7px] font-bold tracking-tight truncate w-full text-center leading-none',
                     'transition-all duration-200',
                     isActive
                       ? 'text-white'
