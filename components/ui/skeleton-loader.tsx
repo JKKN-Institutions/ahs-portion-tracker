@@ -70,10 +70,9 @@ export function SkeletonChart() {
       <div className="flex items-end gap-2 h-40">
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-2">
-            <Skeleton
-              className="w-full"
-              style={{ height: `${Math.random() * 60 + 40}%` }}
-            />
+            <div className="w-full" style={{ height: `${Math.random() * 60 + 40}%` }}>
+              <Skeleton className="w-full h-full" />
+            </div>
             <Skeleton className="h-3 w-full" />
           </div>
         ))}

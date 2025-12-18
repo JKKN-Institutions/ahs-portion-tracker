@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/client';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { MobileBottomNav } from './mobile-bottom-nav';
+import { FloatingActionButton } from '@/components/ui/floating-action-button';
 import { User, AcademicYear, UserRole } from '@/types/database';
 import { LoadingScreen } from '@/components/ui/loading-screen';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert, Users, BookOpen, ClipboardCheck, FileText, CalendarPlus } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -93,6 +94,67 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
     localStorage.setItem('currentAcademicYear', yearId);
   };
 
+  // Define FAB actions based on user role
+  const getFABActions = () => {
+    const actions = [];
+
+    if (user?.role === 'super_admin') {
+      actions.push(
+        {
+          id: 'add-user',
+          label: 'Add User',
+          icon: Users,
+          onClick: () => router.push('/dashboard/users'),
+          roles: ['super_admin', 'admin'],
+        },
+        {
+          id: 'add-subject',
+          label: 'Add Subject',
+          icon: BookOpen,
+          onClick: () => router.push('/dashboard/portions'),
+          roles: ['super_admin', 'admin', 'facilitator'],
+        }
+      );
+    } else if (user?.role === 'admin' || user?.role === 'facilitator') {
+      actions.push(
+        {
+          id: 'add-portion',
+          label: 'Add Portion',
+          icon: CalendarPlus,
+          onClick: () => router.push('/dashboard/portions'),
+          roles: ['admin', 'facilitator'],
+        },
+        {
+          id: 'add-lesson',
+          label: 'Add Lesson',
+          icon: FileText,
+          onClick: () => router.push('/dashboard/lesson-plans'),
+          roles: ['admin', 'facilitator'],
+        },
+        {
+          id: 'add-assessment',
+          label: 'Add Assessment',
+          icon: ClipboardCheck,
+          onClick: () => router.push('/dashboard/assessments'),
+          roles: ['admin', 'facilitator'],
+        }
+      );
+    } else {
+      // Learner actions
+      actions.push(
+        {
+          id: 'view-assessments',
+          label: 'Assessments',
+          icon: ClipboardCheck,
+          onClick: () => router.push('/dashboard/assessments'),
+          roles: ['learner'],
+        }
+      );
+    }
+
+    return actions;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-mesh">
@@ -116,42 +178,42 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
   }
 
   // Check role-based access
-  const isAdminRoute = pathname?.startsWith('/dashboard/admin');
-  const isFacilitatorOnlyRoute = pathname?.startsWith('/dashboard/facilitator') || pathname?.startsWith('/dashboard/portions') || pathname?.startsWith('/dashboard/lesson-plans');
-  const isStudentRoute = pathname?.startsWith('/dashboard/student');
+  const isSharedAdminFacilitatorRoute = pathname === '/dashboard' || pathname?.startsWith('/dashboard/users') || pathname?.startsWith('/dashboard/announcements');
+  const isAdminRoute = false; // No admin-only routes anymore (all shared with facilitators)
+  const isFacilitatorOnlyRoute = pathname?.startsWith('/dashboard/portions') || pathname?.startsWith('/dashboard/lesson-plans');
+  const isLearnerRoute = pathname?.startsWith('/dashboard/learner');
   const isSharedRoute = pathname?.startsWith('/dashboard/assessments') || pathname?.startsWith('/dashboard/projects') || pathname?.startsWith('/dashboard/settings');
   const isSuperAdminRoute = pathname?.startsWith('/dashboard/super-admin');
 
   // Access rules:
   // - Super Admin: can access everything
-  // - Admin: can access admin, facilitator and student dashboards (but not super-admin routes)
-  // - Facilitator: can access facilitator routes, student routes, and shared routes (assessments, projects)
-  // - Student: can access student routes and shared routes (assessments, projects)
+  // - Admin: can access admin, facilitator and learner dashboards (but not super-admin routes)
+  // - Facilitator: can access facilitator routes, learner routes, and shared routes (assessments, projects)
+  // - Learner: can access learner routes and shared routes (assessments, projects)
 
   const hasAccess = () => {
     if (user.role === 'super_admin') return true;
     if (user.role === 'admin') {
-      // Admins can access admin routes but not super-admin routes
+      // Admins can access all routes except super-admin routes
       if (isSuperAdminRoute) return false;
       return true;
     }
     if (user.role === 'facilitator') {
-      // Facilitators can access facilitator routes, student routes, and shared routes, but not admin routes
-      if (isAdminRoute || isSuperAdminRoute) return false;
+      // Facilitators can access shared admin/facilitator routes, facilitator-only routes, learner routes, and shared routes
+      if (isSuperAdminRoute) return false;
       return true;
     }
-    // Students and any other roles (like 'viewer') are treated as students
-    // They can access student routes, shared routes (assessments, projects), and settings
-    if (isAdminRoute || isFacilitatorOnlyRoute || isSuperAdminRoute) return false;
+    // Learners and any other roles are treated as learners
+    // They can access learner routes, shared routes (assessments, projects), and settings
+    if (isFacilitatorOnlyRoute || isSuperAdminRoute || isSharedAdminFacilitatorRoute) return false;
     return true;
   };
 
   // Get the appropriate dashboard path for the user's role
   const getDashboardPath = () => {
     if (user.role === 'super_admin') return '/dashboard/super-admin';
-    if (user.role === 'admin') return '/dashboard/admin';
-    if (user.role === 'facilitator') return '/dashboard/facilitator';
-    return '/dashboard/student'; // Default for students and any other role
+    if (user.role === 'admin' || user.role === 'facilitator') return '/dashboard';
+    return '/dashboard/learner'; // Default for learners and any other role
   };
 
   if (!hasAccess()) {
@@ -215,7 +277,7 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
           onAcademicYearChange={handleAcademicYearChange}
           onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
-        <main className="p-4 sm:p-6 lg:p-8 pb-20 md:pb-8">
+        <main className="p-1.5 xs:p-2 sm:p-4 md:p-6 lg:p-8 pb-20 md:pb-8">
           <div className="animate-fade-in-up">
             {children}
           </div>
@@ -224,6 +286,12 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav userRole={user.role} />
+
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        actions={getFABActions()}
+        userRole={user.role}
+      />
     </div>
   );
 }

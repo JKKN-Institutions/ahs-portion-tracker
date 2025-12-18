@@ -49,7 +49,10 @@ export function NotificationDropdown({ userId }: NotificationDropdownProps) {
         .limit(10);
 
       if (error) {
-        console.error('Error fetching notifications:', error);
+        // Table might not exist - silently fail and show empty state
+        setNotifications([]);
+        setUnreadCount(0);
+        setLoading(false);
         return;
       }
 
@@ -58,7 +61,9 @@ export function NotificationDropdown({ userId }: NotificationDropdownProps) {
         setUnreadCount(data.filter(n => !n.is_read).length);
       }
     } catch (error) {
-      console.error('Error:', error);
+      // Silently handle errors and show empty state
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
@@ -67,25 +72,46 @@ export function NotificationDropdown({ userId }: NotificationDropdownProps) {
   useEffect(() => {
     fetchNotifications();
 
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          fetchNotifications();
+    // Subscribe to realtime changes only if notifications table exists
+    let channel: any = null;
+
+    const setupRealtimeSubscription = async () => {
+      try {
+        // Test if table exists first
+        const { error: testError } = await supabase
+          .from('notifications')
+          .select('id')
+          .limit(1);
+
+        // Only subscribe if table exists (no error)
+        if (!testError) {
+          channel = supabase
+            .channel('notifications')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'notifications',
+                filter: `user_id=eq.${userId}`,
+              },
+              () => {
+                fetchNotifications();
+              }
+            )
+            .subscribe();
         }
-      )
-      .subscribe();
+      } catch (error) {
+        // Silently ignore subscription errors
+      }
+    };
+
+    setupRealtimeSubscription();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [supabase, userId, fetchNotifications]);
 
@@ -149,7 +175,7 @@ export function NotificationDropdown({ userId }: NotificationDropdownProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-80 glass-card border-white/30 p-0 max-h-[400px] overflow-hidden"
+        className="w-[calc(100vw-2rem)] sm:w-80 glass-card border-white/30 p-0 max-h-[400px] overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">

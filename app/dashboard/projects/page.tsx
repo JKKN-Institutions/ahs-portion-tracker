@@ -22,38 +22,30 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import {
   Loader2,
   Search,
   FolderKanban,
   Calendar,
-  Trophy,
-  Medal,
-  Award,
   Upload,
-  Star,
-  Crown,
-  TrendingUp,
-  FileText,
   Eye,
   CheckCircle,
   Clock,
   AlertTriangle,
-  FileUp,
   Presentation,
   BookOpen,
   Newspaper,
+  Plus,
+  Edit2,
+  Trash2,
+  FileText,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { User } from '@/types/database';
+import { BackButton } from '@/components/ui/back-button';
 
 interface Project {
   id: string;
@@ -93,17 +85,6 @@ interface StudentProjectSubmission {
   };
 }
 
-interface LeaderboardEntry {
-  rank: number;
-  student_id: string;
-  student_name: string;
-  email: string;
-  total_score: number;
-  max_possible: number;
-  percentage: number;
-  projects_completed: number;
-}
-
 export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -113,12 +94,10 @@ export default function ProjectsPage() {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [mySubmissions, setMySubmissions] = useState<StudentProjectSubmission[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('my-projects');
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
 
   // Form state for uploading project
@@ -126,6 +105,18 @@ export default function ProjectsPage() {
     status: 'completed' as 'pending' | 'in_progress' | 'completed',
     document_file: null as File | null,
     remarks: '',
+  });
+
+  // State for creating new project
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projectFormData, setProjectFormData] = useState({
+    title: '',
+    subject_name: '',
+    type: 'case_study' as 'case_study' | 'seminar' | 'reportage',
+    description: '',
+    due_date: '',
+    status: 'pending' as 'pending' | 'in_progress' | 'completed',
   });
 
   const supabase = createClient();
@@ -144,68 +135,6 @@ export default function ProjectsPage() {
     }
   }, [supabase]);
 
-  const fetchLeaderboard = useCallback(async () => {
-    try {
-      const { data: submissionsData, error } = await supabase
-        .from('student_project_submissions')
-        .select(`
-          student_id,
-          score,
-          max_score,
-          status,
-          verified,
-          student:users!student_id(id, first_name, last_name, email)
-        `)
-        .eq('verified', true)
-        .eq('status', 'completed');
-
-      if (error) {
-        console.error('Error fetching leaderboard:', error);
-        return;
-      }
-
-      if (submissionsData && submissionsData.length > 0) {
-        const studentTotals: { [key: string]: LeaderboardEntry } = {};
-
-        submissionsData.forEach((submission: any) => {
-          const studentId = submission.student_id;
-          if (submission.score === null) return;
-
-          if (!studentTotals[studentId]) {
-            studentTotals[studentId] = {
-              rank: 0,
-              student_id: studentId,
-              student_name: `${submission.student?.first_name || ''} ${submission.student?.last_name || ''}`.trim() || 'Unknown',
-              email: submission.student?.email || '',
-              total_score: 0,
-              max_possible: 0,
-              percentage: 0,
-              projects_completed: 0,
-            };
-          }
-          studentTotals[studentId].total_score += Number(submission.score);
-          studentTotals[studentId].max_possible += Number(submission.max_score);
-          studentTotals[studentId].projects_completed += 1;
-        });
-
-        const leaderboardArray = Object.values(studentTotals)
-          .map(entry => ({
-            ...entry,
-            percentage: entry.max_possible > 0 ? (entry.total_score / entry.max_possible) * 100 : 0,
-          }))
-          .sort((a, b) => b.percentage - a.percentage)
-          .map((entry, index) => ({
-            ...entry,
-            rank: index + 1,
-          }));
-
-        setLeaderboard(leaderboardArray);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  }, [supabase]);
-
   const fetchMySubmissions = useCallback(async () => {
     if (!currentUser) return;
 
@@ -216,20 +145,216 @@ export default function ProjectsPage() {
         .eq('student_id', currentUser.id);
 
       if (error) {
-        console.error('Error fetching submissions:', error);
+        // Table may not exist yet - silently ignore
         return;
       }
 
       setMySubmissions(data || []);
-    } catch (error) {
-      console.error('Error:', error);
+    } catch {
+      // Silently ignore errors
     }
   }, [supabase, currentUser]);
+
+  const resetProjectForm = () => {
+    setProjectFormData({
+      title: '',
+      subject_name: '',
+      type: 'case_study',
+      description: '',
+      due_date: '',
+      status: 'pending',
+    });
+    setEditingProject(null);
+  };
+
+  const handleCreateProject = async () => {
+    if (!currentUser || !projectFormData.title || !projectFormData.due_date) {
+      toast.error('Please fill in required fields');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // First, get or create a subject for the project
+      let subjectId = null;
+      if (projectFormData.subject_name) {
+        // Check if subject exists
+        const { data: existingSubject } = await supabase
+          .from('subjects')
+          .select('id')
+          .ilike('name', projectFormData.subject_name)
+          .single();
+
+        if (existingSubject) {
+          subjectId = existingSubject.id;
+        }
+      }
+
+      // If no subject found, get the first available subject or create without one
+      if (!subjectId) {
+        const { data: anySubject } = await supabase
+          .from('subjects')
+          .select('id')
+          .limit(1)
+          .single();
+
+        if (anySubject) {
+          subjectId = anySubject.id;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          title: projectFormData.title,
+          type: projectFormData.type,
+          description: projectFormData.description || null,
+          due_date: projectFormData.due_date,
+          assigned_date: new Date().toISOString().split('T')[0],
+          is_completed: projectFormData.status === 'completed',
+          subject_id: subjectId,
+        })
+        .select('*, subject:subjects(id, name, code)')
+        .single();
+
+      if (error) {
+        console.error('Supabase error:', error.message, error.details, error.hint);
+        throw error;
+      }
+
+      // Add to local state
+      setProjects(prev => [...prev, data]);
+      setFilteredProjects(prev => [...prev, data]);
+      setIsCreateModalOpen(false);
+      resetProjectForm();
+      toast.success('Project created successfully!');
+    } catch (error: any) {
+      console.error('Error creating project:', error?.message || error);
+      toast.error(error?.message || 'Failed to create project');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateProject = async () => {
+    if (!editingProject) return;
+
+    try {
+      setIsSubmitting(true);
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          title: projectFormData.title,
+          type: projectFormData.type,
+          description: projectFormData.description,
+          due_date: projectFormData.due_date,
+          is_completed: projectFormData.status === 'completed',
+        })
+        .eq('id', editingProject.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedProject = {
+        ...editingProject,
+        title: projectFormData.title,
+        type: projectFormData.type as 'case_study' | 'seminar' | 'reportage',
+        description: projectFormData.description,
+        due_date: projectFormData.due_date,
+        is_completed: projectFormData.status === 'completed',
+      };
+
+      setProjects(prev => prev.map(p => p.id === editingProject.id ? updatedProject : p));
+      setFilteredProjects(prev => prev.map(p => p.id === editingProject.id ? updatedProject : p));
+      setIsCreateModalOpen(false);
+      resetProjectForm();
+      toast.success('Project updated successfully!');
+    } catch (error) {
+      console.error('Error updating project:', error);
+      toast.error('Failed to update project');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateStatus = async (projectId: string, isCompleted: boolean) => {
+    try {
+      // Check authentication
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('You must be logged in to update status');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('projects')
+        .update({ is_completed: isCompleted })
+        .eq('id', projectId);
+
+      if (error) {
+        console.error('Supabase error:', error.message, error.code);
+        toast.error(`Failed to update: ${error.message}`);
+        return;
+      }
+
+      // Update local state
+      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, is_completed: isCompleted } : p));
+      setFilteredProjects(prev => prev.map(p => p.id === projectId ? { ...p, is_completed: isCompleted } : p));
+      toast.success(`Project marked as ${isCompleted ? 'completed' : 'pending'}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error updating status:', msg, error);
+      toast.error(`Error: ${msg}`);
+    }
+  };
+
+  const openEditModal = (project: Project) => {
+    setEditingProject(project);
+    setProjectFormData({
+      title: project.title,
+      subject_name: project.subject?.name || '',
+      type: project.type,
+      description: project.description || '',
+      due_date: project.due_date,
+      status: project.is_completed ? 'completed' : 'pending',
+    });
+    setIsCreateModalOpen(true);
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (error) {
+        toast.error('Failed to delete project');
+        return;
+      }
+
+      // Update local state
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      setFilteredProjects(prev => prev.filter(p => p.id !== projectId));
+      toast.success('Project deleted successfully');
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
+      // Build query - fetch all projects
+      // Learners see all projects assigned by facilitators
+      // Their personal submission data is tracked in student_project_submissions
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
@@ -247,13 +372,12 @@ export default function ProjectsPage() {
         setFilteredProjects(projectsData || []);
       }
 
-      await fetchLeaderboard();
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
-  }, [supabase, fetchLeaderboard]);
+  }, [supabase, currentUser]);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -371,8 +495,8 @@ export default function ProjectsPage() {
         });
 
       if (error) {
-        console.error('Error submitting:', error);
-        toast.error('Failed to submit project');
+        console.error('Error submitting:', error.message, error.code, error.details);
+        toast.error(`Failed to submit: ${error.message || 'Unknown error'}`);
         return;
       }
 
@@ -380,7 +504,6 @@ export default function ProjectsPage() {
       setIsUploadModalOpen(false);
       setUploadFormData({ status: 'completed', document_file: null, remarks: '' });
       fetchMySubmissions();
-      fetchLeaderboard();
     } catch (error) {
       console.error('Error:', error);
       toast.error('An unexpected error occurred');
@@ -454,6 +577,9 @@ export default function ProjectsPage() {
   const myPendingCount = mySubmissions.filter(s => s.status !== 'completed').length;
   const myVerifiedCount = mySubmissions.filter(s => s.verified).length;
 
+  // Treat anyone who is NOT super_admin, admin, or facilitator as a learner
+  const isLearner = currentUser?.role !== 'super_admin' && currentUser?.role !== 'admin' && currentUser?.role !== 'facilitator';
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -467,18 +593,37 @@ export default function ProjectsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Back Button */}
+        <BackButton />
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in-up">
           <div>
-            <h1 className="text-3xl font-bold text-gradient">My Projects</h1>
+            <h1 className="text-3xl font-bold text-gradient">
+              {isLearner ? 'My Projects' : 'All Projects'}
+            </h1>
             <p className="text-muted-foreground mt-1">
-              Upload your project documents and track your progress
+              {isLearner
+                ? 'Create and track your projects'
+                : 'View projects created by learners'}
             </p>
           </div>
+          {isLearner && (
+            <Button
+              onClick={() => {
+                resetProjectForm();
+                setIsCreateModalOpen(true);
+              }}
+              className="bg-gradient-to-r from-[#0b6d41] to-[#0b6d41]/80 hover:from-[#0b6d41]/90 hover:to-[#0b6d41]/70 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Project
+            </Button>
+          )}
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 ${isLearner ? 'md:grid-cols-3' : 'md:grid-cols-3'} gap-4`}>
           <div className="glass-card rounded-2xl p-6 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500">
               <FolderKanban className="h-6 w-6 text-white" />
@@ -506,40 +651,10 @@ export default function ProjectsPage() {
               <p className="text-2xl font-bold text-gradient">{myPendingCount}</p>
             </div>
           </div>
-          <div className="glass-card rounded-2xl p-6 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500">
-              <Trophy className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">My Rank</p>
-              <p className="text-2xl font-bold text-gradient">
-                {leaderboard.find(e => e.student_id === currentUser?.id)?.rank || '-'}
-              </p>
-            </div>
-          </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="glass-card p-1 bg-white/70 dark:bg-gray-800/70">
-            <TabsTrigger
-              value="my-projects"
-              className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md"
-            >
-              <FileUp className="mr-2 h-4 w-4" />
-              My Projects
-            </TabsTrigger>
-            <TabsTrigger
-              value="leaderboard"
-              className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md"
-            >
-              <Trophy className="mr-2 h-4 w-4" />
-              Leaderboard
-            </TabsTrigger>
-          </TabsList>
-
-          {/* My Projects Tab */}
-          <TabsContent value="my-projects" className="space-y-4">
+        {/* Projects Section */}
+          <div className="space-y-4">
             {/* Filters */}
             <div className="glass-card rounded-2xl p-6">
               <div className="flex flex-col md:flex-row gap-4">
@@ -582,7 +697,21 @@ export default function ProjectsPage() {
               {filteredProjects.length === 0 ? (
                 <div className="col-span-full glass-card rounded-2xl p-12 text-center">
                   <FolderKanban className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-muted-foreground">No projects found</p>
+                  <p className="text-muted-foreground mb-4">
+                    {isLearner ? 'No projects yet' : 'No projects created by learners yet'}
+                  </p>
+                  {isLearner && (
+                    <Button
+                      onClick={() => {
+                        resetProjectForm();
+                        setIsCreateModalOpen(true);
+                      }}
+                      className="bg-gradient-to-r from-[#0b6d41] to-[#0b6d41]/80 hover:from-[#0b6d41]/90 hover:to-[#0b6d41]/70 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create your first project
+                    </Button>
+                  )}
                 </div>
               ) : (
                 filteredProjects.map((project, index) => {
@@ -671,7 +800,49 @@ export default function ProjectsPage() {
                         </div>
                       )}
 
+                      {/* Status Buttons - Only for learners */}
+                      {isLearner && (
+                        <div className="flex gap-1 mb-3">
+                          <Button
+                            variant={!project.is_completed ? 'default' : 'outline'}
+                            size="sm"
+                            className={`flex-1 text-xs h-7 ${!project.is_completed ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
+                            onClick={() => handleUpdateStatus(project.id, false)}
+                          >
+                            Pending
+                          </Button>
+                          <Button
+                            variant={project.is_completed ? 'default' : 'outline'}
+                            size="sm"
+                            className={`flex-1 text-xs h-7 ${project.is_completed ? 'bg-green-500 hover:bg-green-600' : ''}`}
+                            onClick={() => handleUpdateStatus(project.id, true)}
+                          >
+                            Completed
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
                       <div className="flex gap-2">
+                        {isLearner && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(project)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteProject(project.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                         {submission?.document_url && (
                           <Button
                             variant="outline"
@@ -686,256 +857,35 @@ export default function ProjectsPage() {
                             View
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          className={`${submission?.document_url ? 'flex-1' : 'w-full'} gradient-bg text-white`}
-                          onClick={() => openUploadModal(project)}
-                        >
-                          <Upload className="mr-1 h-4 w-4" />
-                          {submission ? 'Update' : 'Submit'}
-                        </Button>
+                        {isLearner && (
+                          <Button
+                            size="sm"
+                            className={`flex-1 gradient-bg text-white`}
+                            onClick={() => openUploadModal(project)}
+                          >
+                            <Upload className="mr-1 h-4 w-4" />
+                            {submission ? 'Update' : 'Submit'}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
-          </TabsContent>
-
-          {/* Leaderboard Tab */}
-          <TabsContent value="leaderboard" className="space-y-6">
-            {leaderboard.length === 0 ? (
-              <div className="glass-card rounded-2xl p-12 text-center">
-                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center">
-                  <Trophy className="h-12 w-12 text-yellow-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Rankings Yet</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  The leaderboard will appear once students start completing and getting their projects verified.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Podium Section - Top 3 */}
-                {leaderboard.length >= 1 && (
-                  <div className="glass-card rounded-2xl p-6 overflow-hidden">
-                    <div className="text-center mb-8">
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-100 to-amber-100 border border-yellow-200">
-                        <Crown className="h-5 w-5 text-yellow-600" />
-                        <span className="font-semibold text-yellow-700">Top Project Performers</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-end justify-center gap-4 md:gap-8 pb-4">
-                      {/* 2nd Place */}
-                      {leaderboard[1] && (
-                        <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                          <div className="relative mb-3">
-                            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-slate-200 to-gray-300 border-4 border-gray-300 shadow-lg flex items-center justify-center">
-                              <span className="text-2xl md:text-3xl font-bold text-gray-600">
-                                {leaderboard[1].student_name.charAt(0)}
-                              </span>
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-slate-400 border-2 border-white shadow-md flex items-center justify-center">
-                              <Medal className="h-4 w-4 text-white" />
-                            </div>
-                          </div>
-                          <h4 className="font-semibold text-gray-700 text-center text-sm md:text-base max-w-[100px] truncate">
-                            {leaderboard[1].student_name}
-                          </h4>
-                          <p className="text-xl md:text-2xl font-bold text-gray-500">{leaderboard[1].percentage.toFixed(1)}%</p>
-                          <p className="text-xs text-muted-foreground">{leaderboard[1].projects_completed} projects</p>
-                          <div className="mt-2 w-20 md:w-28 h-24 md:h-28 bg-gradient-to-t from-gray-300 to-slate-200 rounded-t-lg flex items-center justify-center border-2 border-b-0 border-gray-300">
-                            <span className="text-4xl md:text-5xl font-bold text-gray-400">2</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 1st Place */}
-                      {leaderboard[0] && (
-                        <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                          <div className="relative mb-3">
-                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-yellow-300 to-amber-400 border-4 border-yellow-400 shadow-xl flex items-center justify-center ring-4 ring-yellow-200 ring-offset-2">
-                              <span className="text-3xl md:text-4xl font-bold text-yellow-800">
-                                {leaderboard[0].student_name.charAt(0)}
-                              </span>
-                            </div>
-                            <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                              <Crown className="h-8 w-8 text-yellow-500 drop-shadow-lg" />
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 border-2 border-white shadow-md flex items-center justify-center">
-                              <Trophy className="h-5 w-5 text-white" />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                            <h4 className="font-bold text-gray-800 text-center text-base md:text-lg max-w-[120px] truncate">
-                              {leaderboard[0].student_name}
-                            </h4>
-                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          </div>
-                          <p className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">
-                            {leaderboard[0].percentage.toFixed(1)}%
-                          </p>
-                          <p className="text-xs text-muted-foreground">{leaderboard[0].projects_completed} projects</p>
-                          <div className="mt-2 w-24 md:w-32 h-32 md:h-36 bg-gradient-to-t from-yellow-400 to-amber-300 rounded-t-lg flex items-center justify-center border-2 border-b-0 border-yellow-400 shadow-lg">
-                            <span className="text-5xl md:text-6xl font-bold text-yellow-600">1</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 3rd Place */}
-                      {leaderboard[2] && (
-                        <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-                          <div className="relative mb-3">
-                            <div className="w-18 h-18 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-amber-200 to-orange-300 border-4 border-amber-300 shadow-lg flex items-center justify-center" style={{ width: '72px', height: '72px' }}>
-                              <span className="text-xl md:text-2xl font-bold text-amber-700">
-                                {leaderboard[2].student_name.charAt(0)}
-                              </span>
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 border-2 border-white shadow-md flex items-center justify-center">
-                              <Award className="h-3.5 w-3.5 text-white" />
-                            </div>
-                          </div>
-                          <h4 className="font-semibold text-gray-700 text-center text-sm md:text-base max-w-[90px] truncate">
-                            {leaderboard[2].student_name}
-                          </h4>
-                          <p className="text-lg md:text-xl font-bold text-amber-600">{leaderboard[2].percentage.toFixed(1)}%</p>
-                          <p className="text-xs text-muted-foreground">{leaderboard[2].projects_completed} projects</p>
-                          <div className="mt-2 w-18 md:w-24 h-16 md:h-20 bg-gradient-to-t from-amber-400 to-orange-300 rounded-t-lg flex items-center justify-center border-2 border-b-0 border-amber-300" style={{ width: '96px' }}>
-                            <span className="text-3xl md:text-4xl font-bold text-amber-500">3</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Full Rankings List */}
-                <div className="glass-card rounded-2xl overflow-hidden">
-                  <div className="p-5 border-b border-white/30 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
-                        <TrendingUp className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Complete Rankings</h3>
-                        <p className="text-sm text-muted-foreground">{leaderboard.length} students ranked</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {leaderboard.map((entry, index) => (
-                      <div
-                        key={entry.student_id}
-                        className={`p-4 md:p-5 flex items-center gap-4 transition-all duration-300 hover:bg-gradient-to-r ${
-                          entry.student_id === currentUser?.id
-                            ? 'bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 border-l-4 border-purple-500'
-                            : entry.rank === 1 ? 'hover:from-yellow-50 hover:to-amber-50' :
-                            entry.rank === 2 ? 'hover:from-gray-50 hover:to-slate-50' :
-                            entry.rank === 3 ? 'hover:from-amber-50 hover:to-orange-50' :
-                            'hover:from-purple-50 hover:to-pink-50'
-                        }`}
-                      >
-                        {/* Rank Badge */}
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-md ${
-                          entry.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white' :
-                          entry.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-slate-400 text-white' :
-                          entry.rank === 3 ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' :
-                          'bg-gradient-to-br from-purple-100 to-pink-100 text-purple-600'
-                        }`}>
-                          {entry.rank <= 3 ? (
-                            entry.rank === 1 ? <Crown className="h-6 w-6" /> :
-                            entry.rank === 2 ? <Medal className="h-6 w-6" /> :
-                            <Award className="h-6 w-6" />
-                          ) : (
-                            `#${entry.rank}`
-                          )}
-                        </div>
-
-                        {/* Avatar */}
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg ${
-                          entry.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500' :
-                          entry.rank === 2 ? 'bg-gradient-to-br from-gray-400 to-slate-500' :
-                          entry.rank === 3 ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
-                          'bg-gradient-to-br from-purple-400 to-pink-500'
-                        }`}>
-                          {entry.student_name.charAt(0)}
-                        </div>
-
-                        {/* Student Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className={`font-semibold truncate ${entry.rank <= 3 ? 'text-gray-800' : 'text-gray-700'}`}>
-                              {entry.student_name}
-                              {entry.student_id === currentUser?.id && (
-                                <span className="ml-2 text-purple-600">(You)</span>
-                              )}
-                            </p>
-                            {entry.rank === 1 && (
-                              <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium">
-                                Champion
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">{entry.email}</p>
-                        </div>
-
-                        {/* Stats */}
-                        <div className="hidden md:flex items-center gap-6">
-                          <div className="text-center">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Score</p>
-                            <p className="font-semibold text-gray-700">{entry.total_score}/{entry.max_possible}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Projects</p>
-                            <p className="font-semibold text-gray-700">{entry.projects_completed}</p>
-                          </div>
-                        </div>
-
-                        {/* Percentage */}
-                        <div className="flex flex-col items-end gap-1">
-                          <p className={`text-xl md:text-2xl font-bold ${
-                            entry.rank === 1 ? 'text-yellow-600' :
-                            entry.rank === 2 ? 'text-gray-500' :
-                            entry.rank === 3 ? 'text-amber-600' :
-                            'text-purple-600'
-                          }`}>
-                            {entry.percentage.toFixed(1)}%
-                          </p>
-                          <div className="w-20 md:w-28 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                entry.rank === 1 ? 'bg-gradient-to-r from-yellow-400 to-amber-500' :
-                                entry.rank === 2 ? 'bg-gradient-to-r from-gray-400 to-slate-500' :
-                                entry.rank === 3 ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
-                                'bg-gradient-to-r from-purple-400 to-pink-500'
-                              }`}
-                              style={{ width: `${entry.percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </TabsContent>
-        </Tabs>
+          </div>
       </div>
 
       {/* Upload Project Modal */}
       <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-w-[95vw] overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gradient">
               Submit Project
             </DialogTitle>
             <DialogDescription>
               {selectedProject && (
-                <span className="block mt-1">
+                <span className="block mt-1 text-gray-600 dark:text-gray-400">
                   <span className={`text-xs font-medium px-2 py-1 rounded-full bg-gradient-to-r ${getProjectTypeGradient(selectedProject.type)} text-white mr-2`}>
                     {getProjectTypeLabel(selectedProject.type)}
                   </span>
@@ -945,20 +895,20 @@ export default function ProjectsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 bg-white dark:bg-gray-900 max-w-full overflow-hidden">
             {/* Status Selection */}
             <div className="space-y-2">
-              <Label>Project Status *</Label>
+              <Label className="text-gray-800 dark:text-gray-200 font-medium">Project Status *</Label>
               <Select
                 value={uploadFormData.status}
                 onValueChange={(value: 'pending' | 'in_progress' | 'completed') =>
                   setUploadFormData({ ...uploadFormData, status: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white dark:bg-gray-800">
                   <SelectItem value="pending">Not Started</SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
@@ -967,31 +917,47 @@ export default function ProjectsPage() {
             </div>
 
             {/* Document Upload */}
-            <div className="space-y-2">
-              <Label>Upload Document (Optional)</Label>
+            <div className="space-y-2 max-w-full overflow-hidden">
+              <Label className="text-gray-800 dark:text-gray-200">Upload Document (Optional)</Label>
               <div
-                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all hover:border-purple-400 hover:bg-purple-50/50 ${
-                  uploadFormData.document_file ? 'border-green-400 bg-green-50/50' : 'border-gray-300'
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all bg-white dark:bg-gray-800 max-w-full overflow-hidden ${
+                  uploadFormData.document_file
+                    ? 'border-green-500 hover:border-green-600 bg-green-50 dark:bg-green-900/20'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-900/20'
                 }`}
                 onClick={() => document.getElementById('document-upload')?.click()}
               >
                 {uploadFormData.document_file ? (
-                  <div className="space-y-2">
-                    <FileText className="h-12 w-12 mx-auto text-green-500" />
-                    <p className="text-sm text-green-600 font-medium">
-                      {uploadFormData.document_file.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Click to change</p>
+                  <div className="space-y-3 flex flex-col items-center max-w-full overflow-hidden">
+                    <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
+                      <FileText className="h-10 w-10 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="w-full max-w-full px-2 overflow-hidden">
+                      <p className="text-sm text-green-700 dark:text-green-400 font-semibold break-words hyphens-auto text-center max-w-full"
+                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                         title={uploadFormData.document_file.name}>
+                        {uploadFormData.document_file.name.length > 50
+                          ? uploadFormData.document_file.name.substring(0, 47) + '...'
+                          : uploadFormData.document_file.name
+                        }
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-500 mt-1">File selected successfully</p>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Click to change file</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <FileUp className="h-12 w-12 mx-auto text-gray-400" />
-                    <p className="text-muted-foreground">
-                      Click to upload your project document
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      PDF, DOC, DOCX, PPT, PPTX (max 20MB)
-                    </p>
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 inline-block">
+                      <Upload className="h-10 w-10 text-gray-500 dark:text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">
+                        Click to upload your project document
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        PDF, DOC, DOCX, PPT, PPTX (max 20MB)
+                      </p>
+                    </div>
                   </div>
                 )}
                 <input
@@ -1006,19 +972,22 @@ export default function ProjectsPage() {
 
             {/* Remarks */}
             <div className="space-y-2">
-              <Label htmlFor="remarks">Notes/Remarks (Optional)</Label>
+              <Label htmlFor="remarks" className="text-gray-800 dark:text-gray-200 font-medium">Notes/Remarks (Optional)</Label>
               <Textarea
                 id="remarks"
                 placeholder="Add any notes about your project..."
                 value={uploadFormData.remarks}
                 onChange={(e) => setUploadFormData({ ...uploadFormData, remarks: e.target.value })}
                 rows={3}
+                className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 resize-none"
               />
             </div>
 
-            <p className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <strong>Note:</strong> Your submission will be reviewed and scored by the facilitator.
-            </p>
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-800 dark:text-blue-300">
+                <strong className="font-semibold">Note:</strong> Your submission will be reviewed and scored by the facilitator.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1055,7 +1024,7 @@ export default function ProjectsPage() {
 
       {/* View Document Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gradient">
               Your Submitted Document
@@ -1081,6 +1050,118 @@ export default function ProjectsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create/Edit Project Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
+        setIsCreateModalOpen(open);
+        if (!open) resetProjectForm();
+      }}>
+        <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gradient">
+              {editingProject ? 'Edit Project' : 'Create New Project'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingProject ? 'Update your project details' : 'Add a new project to track your work'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="project-title">Project Title *</Label>
+              <Input
+                id="project-title"
+                placeholder="Enter project title"
+                value={projectFormData.title}
+                onChange={(e) => setProjectFormData(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-subject">Subject</Label>
+              <Input
+                id="project-subject"
+                placeholder="Enter subject name"
+                value={projectFormData.subject_name}
+                onChange={(e) => setProjectFormData(prev => ({ ...prev, subject_name: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="project-type">Type</Label>
+                <Select
+                  value={projectFormData.type}
+                  onValueChange={(value: 'case_study' | 'seminar' | 'reportage') => setProjectFormData(prev => ({ ...prev, type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="case_study">Case Study</SelectItem>
+                    <SelectItem value="seminar">Seminar</SelectItem>
+                    <SelectItem value="reportage">Reportage</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="project-status">Status</Label>
+                <Select
+                  value={projectFormData.status}
+                  onValueChange={(value: 'pending' | 'in_progress' | 'completed') => setProjectFormData(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-due-date">Due Date *</Label>
+              <Input
+                id="project-due-date"
+                type="date"
+                value={projectFormData.due_date}
+                onChange={(e) => setProjectFormData(prev => ({ ...prev, due_date: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-description">Description</Label>
+              <Textarea
+                id="project-description"
+                placeholder="Enter project description"
+                value={projectFormData.description}
+                onChange={(e) => setProjectFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsCreateModalOpen(false);
+              resetProjectForm();
+            }} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-[#0b6d41] to-[#0b6d41]/80 text-white"
+              onClick={editingProject ? handleUpdateProject : handleCreateProject}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {editingProject ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                editingProject ? 'Update Project' : 'Create Project'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

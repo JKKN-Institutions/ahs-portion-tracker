@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Loader2, Search, Filter } from 'lucide-react';
 import { SubjectWithRelations, Portion } from '@/types/database';
+import { BackButton } from '@/components/ui/back-button';
 
 type FilterStatus = 'all' | 'completed' | 'pending' | 'overdue';
 
@@ -129,6 +130,9 @@ export default function PortionsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Back Button */}
+        <BackButton />
+
         <div>
           <h1 className="text-2xl font-bold">My Portions</h1>
           <p className="text-muted-foreground">

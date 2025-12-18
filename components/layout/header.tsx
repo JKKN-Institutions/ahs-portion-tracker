@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, User as UserIcon, Menu, Calendar } from 'lucide-react';
+import { LogOut, User as UserIcon, Calendar } from 'lucide-react';
 import { User, AcademicYear } from '@/types/database';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationDropdown } from '@/components/notifications/notification-dropdown';
@@ -58,7 +58,7 @@ export function Header({
         return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'facilitator':
         return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'student':
+      case 'learner':
         return 'bg-orange-100 text-orange-700 border-orange-200';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
@@ -74,21 +74,13 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-40 glass border-b border-white/20">
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between h-14 sm:h-16 px-1.5 sm:px-4 md:px-6 lg:px-8">
         <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden mr-2 hover:bg-white/50 dark:hover:bg-white/10"
-            onClick={onMenuToggle}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/50 dark:bg-white/10 border border-white/30 dark:border-white/10">
-              <Calendar className="h-4 w-4 text-purple-600" />
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 md:px-3 py-1.5 sm:py-2 rounded-xl bg-white/50 dark:bg-white/10 border border-white/30 dark:border-white/10">
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
               <Select value={currentAcademicYear} onValueChange={onAcademicYearChange}>
-                <SelectTrigger className="w-[140px] border-0 bg-transparent shadow-none focus:ring-0 h-auto p-0">
+                <SelectTrigger className="w-[85px] sm:w-[100px] md:w-[140px] border-0 bg-transparent shadow-none focus:ring-0 h-auto p-0 text-xs sm:text-sm">
                   <SelectValue placeholder="Select Year" />
                 </SelectTrigger>
                 <SelectContent className="glass-card border-white/30">
@@ -103,7 +95,7 @@ export function Header({
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
           {/* Theme Toggle */}
           <ThemeToggle />
 

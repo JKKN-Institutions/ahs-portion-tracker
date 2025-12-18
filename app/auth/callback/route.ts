@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/dashboard/facilitator';
+  const next = searchParams.get('next') ?? '/dashboard';
 
   if (code) {
     const supabase = await createClient();
@@ -34,17 +34,21 @@ export async function GET(request: Request) {
           console.error('Error creating user profile:', insertError);
         }
 
-        return NextResponse.redirect(`${origin}/dashboard/facilitator`);
+        return NextResponse.redirect(`${origin}/dashboard`);
       }
 
-      // Redirect based on role
+      // Redirect based on role to their specific dashboard
       if (existingUser?.role === 'super_admin') {
-        return NextResponse.redirect(`${origin}/dashboard/admin`);
-      } else if (existingUser?.role === 'student') {
-        return NextResponse.redirect(`${origin}/dashboard/student`);
+        return NextResponse.redirect(`${origin}/dashboard/super-admin`);
+      } else if (existingUser?.role === 'admin' || existingUser?.role === 'facilitator') {
+        // Both admin and facilitator use the unified dashboard
+        return NextResponse.redirect(`${origin}/dashboard`);
+      } else if (existingUser?.role === 'learner') {
+        return NextResponse.redirect(`${origin}/dashboard/learner`);
+      } else {
+        // Default fallback
+        return NextResponse.redirect(`${origin}/dashboard`);
       }
-
-      return NextResponse.redirect(`${origin}${next}`);
     }
   }
 

@@ -12,6 +12,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Academic Tracker - Portion Completion System",
   description: "Track and manage academic portion completion across departments",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({

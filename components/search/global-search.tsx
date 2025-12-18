@@ -87,7 +87,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
             type: 'user',
             title: `${user.first_name} ${user.last_name}`,
             subtitle: `${user.role} • ${user.email}`,
-            href: '/dashboard/admin/users',
+            href: '/dashboard/users',
             icon: typeIcons.user,
           });
         });
@@ -107,7 +107,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
             type: 'subject',
             title: subject.name,
             subtitle: `${subject.code} • ${subject.department?.name || 'No department'}`,
-            href: '/dashboard/admin/portions',
+            href: '/dashboard',
             icon: typeIcons.subject,
           });
         });
@@ -127,7 +127,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
             type: 'department',
             title: dept.name,
             subtitle: dept.code,
-            href: '/dashboard/admin/departments',
+            href: '/dashboard',
             icon: typeIcons.department,
           });
         });
@@ -147,7 +147,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
             type: 'portion',
             title: portion.name,
             subtitle: portion.subject?.name || 'Unknown subject',
-            href: '/dashboard/admin/portions',
+            href: '/dashboard',
             icon: typeIcons.portion,
           });
         });
@@ -292,9 +292,8 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
                 </p>
                 <div className="space-y-2">
                   {[
-                    { label: 'View All Users', href: '/dashboard/admin/users', icon: <User className="h-4 w-4" /> },
-                    { label: 'View All Portions', href: '/dashboard/admin/portions', icon: <FileText className="h-4 w-4" /> },
-                    { label: 'View Departments', href: '/dashboard/admin/departments', icon: <Building2 className="h-4 w-4" /> },
+                    { label: 'View All Users', href: '/dashboard/users', icon: <User className="h-4 w-4" /> },
+                    { label: 'Admin/Facilitator Dashboard', href: '/dashboard', icon: <FileText className="h-4 w-4" /> },
                   ].map((action) => (
                     <button
                       key={action.href}

@@ -1,6 +1,6 @@
 // Database Types for Academic Portion Completion Tracking System
 
-export type UserRole = 'super_admin' | 'admin' | 'facilitator' | 'student';
+export type UserRole = 'super_admin' | 'admin' | 'facilitator' | 'learner';
 
 export type ProjectType = 'case_study' | 'seminar' | 'reportage';
 
@@ -155,18 +155,18 @@ export interface AdminStats {
   completion_percentage: number;
 }
 
-// Student-specific types
-export interface StudentEnrollment {
+// Learner-specific types
+export interface LearnerEnrollment {
   id: string;
-  student_id: string;
+  learner_id: string;
   subject_id: string;
   academic_year_id: string;
   enrolled_at: string;
 }
 
-export interface StudentGrade {
+export interface LearnerGrade {
   id: string;
-  student_id: string;
+  learner_id: string;
   subject_id: string;
   assessment_type: 'ia1' | 'ia2' | 'ia3' | 'assignment' | 'project' | 'final';
   marks_obtained: number;
@@ -196,7 +196,7 @@ export interface Announcement {
   expires_at: string | null;
 }
 
-export interface StudentStats {
+export interface LearnerStats {
   total_subjects: number;
   total_portions: number;
   completed_portions: number;
@@ -205,11 +205,11 @@ export interface StudentStats {
   pending_assignments: number;
 }
 
-// Student Assessment Marks for leaderboard
-export interface StudentAssessmentMark {
+// Learner Assessment Marks for leaderboard
+export interface LearnerAssessmentMark {
   id: string;
   assessment_id: string;
-  student_id: string;
+  learner_id: string;
   marks_obtained: number;
   max_marks: number;
   paper_url: string | null;
@@ -221,8 +221,8 @@ export interface StudentAssessmentMark {
   remarks: string | null;
 }
 
-export interface StudentAssessmentMarkWithDetails extends StudentAssessmentMark {
-  student?: User;
+export interface LearnerAssessmentMarkWithDetails extends LearnerAssessmentMark {
+  learner?: User;
   assessment?: InternalAssessment & {
     subject?: Subject;
   };

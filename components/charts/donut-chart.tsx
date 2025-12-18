@@ -23,11 +23,13 @@ export function DonutChart({
   className,
   color = 'stroke-green-500',
 }: DonutChartProps) {
-  const percentage = Math.min(Math.round((value / maxValue) * 100), 100);
+  // Handle division by zero and ensure valid percentage
+  const percentage = maxValue === 0 ? 0 : Math.min(Math.round((value / maxValue) * 100), 100);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  // Ensure strokeDashoffset is never NaN
+  const strokeDashoffset = isNaN(percentage) ? circumference : circumference - (percentage / 100) * circumference;
 
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)}>

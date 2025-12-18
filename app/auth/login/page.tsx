@@ -42,12 +42,17 @@ export default function LoginPage() {
           .eq('id', data.user.id)
           .single();
 
+        // Redirect to role-specific dashboard
         if (userData?.role === 'super_admin') {
-          router.push('/dashboard/admin');
-        } else if (userData?.role === 'student') {
-          router.push('/dashboard/student');
+          router.push('/dashboard/super-admin');
+        } else if (userData?.role === 'admin' || userData?.role === 'facilitator') {
+          // Both admin and facilitator use the unified dashboard
+          router.push('/dashboard');
+        } else if (userData?.role === 'learner') {
+          router.push('/dashboard/learner');
         } else {
-          router.push('/dashboard/facilitator');
+          // Default fallback
+          router.push('/dashboard');
         }
         router.refresh();
       }
@@ -141,7 +146,7 @@ export default function LoginPage() {
             <div className="flex gap-8 pt-4">
               <div>
                 <p className="text-3xl font-bold text-white">100+</p>
-                <p className="text-white/60 text-sm">Students</p>
+                <p className="text-white/60 text-sm">Learners</p>
               </div>
               <div className="w-px bg-white/20" />
               <div>
@@ -160,7 +165,7 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center gap-2 text-white/60 text-sm">
               <span>Powered by</span>
-              <span className="text-white font-medium">JKKN Educational Institutions</span>
+              <span className="text-white font-medium">JKKN Institutions</span>
             </div>
             <p className="text-[#fbbe00] text-sm mt-1">Your Success - Our Tradition</p>
           </div>
@@ -319,7 +324,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="text-center text-gray-400 text-sm mt-6">
-            © {new Date().getFullYear()} JKKN Educational Institutions. All rights reserved.
+            © {new Date().getFullYear()} JKKN Institutions. All rights reserved.
           </p>
         </div>
       </div>

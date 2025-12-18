@@ -47,14 +47,20 @@ import {
   CheckCircle,
   Clock,
   X,
+  Plus,
+  Settings,
+  Users,
+  Trash2,
+  PenLine,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { User } from '@/types/database';
+import { User, Subject, UserRole } from '@/types/database';
+import { BackButton } from '@/components/ui/back-button';
 
 interface Assessment {
   id: string;
-  subject_id: string;
+  subject_name: string;
   ia_number: number;
   scheduled_date: string;
   conducted_date: string | null;
@@ -105,13 +111,26 @@ export default function AssessmentsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [mySubmissions, setMySubmissions] = useState<StudentSubmission[]>([]);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('my-assessments');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [allSubmissions, setAllSubmissions] = useState<StudentSubmission[]>([]);
+  const [learners, setLearners] = useState<User[]>([]);
+  const [markEntryForm, setMarkEntryForm] = useState({
+    student_id: '',
+    assessment_id: '',
+    marks_obtained: '',
+    max_marks: '100',
+  });
+  const [savingMarks, setSavingMarks] = useState(false);
+  const [studentMarks, setStudentMarks] = useState<any[]>([]);
 
   // Form state for uploading paper
   const [uploadFormData, setUploadFormData] = useState({
@@ -120,6 +139,26 @@ export default function AssessmentsPage() {
     paper_file: null as File | null,
     paper_preview: null as string | null,
   });
+
+  // Form state for creating assessment
+  const [createFormData, setCreateFormData] = useState({
+    department_id: '',
+    subject_id: '',
+    assessment_type: '',
+    max_marks: '20',
+    scheduled_date: '',
+    notes: '',
+  });
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<any[]>([]);
+
+  const ASSESSMENT_TYPES = [
+    { value: '1', label: 'IA 1 (Internal Assessment 1)' },
+    { value: '2', label: 'IA 2 (Internal Assessment 2)' },
+    { value: '3', label: 'IA 3 (Internal Assessment 3)' },
+    { value: '4', label: 'Mid Term Exam' },
+    { value: '5', label: 'Final Exam' },
+  ];
 
   const supabase = createClient();
 
@@ -133,6 +172,11 @@ export default function AssessmentsPage() {
         .single();
       if (userData) {
         setCurrentUser(userData);
+        setUserRole(userData.role as UserRole);
+        // Set default tab based on role
+        if (userData.role === 'admin' || userData.role === 'super_admin' || userData.role === 'facilitator') {
+          setActiveTab('manage');
+        }
       }
     }
   }, [supabase]);
@@ -151,7 +195,7 @@ export default function AssessmentsPage() {
         .eq('verified', true);
 
       if (error) {
-        console.error('Error fetching leaderboard:', error);
+        // Table might not exist yet - silently ignore
         return;
       }
 
@@ -207,7 +251,7 @@ export default function AssessmentsPage() {
         .eq('student_id', currentUser.id);
 
       if (error) {
-        console.error('Error fetching submissions:', error);
+        // Table might not exist yet - silently ignore
         return;
       }
 
@@ -238,6 +282,46 @@ export default function AssessmentsPage() {
         setFilteredAssessments(assessmentsData || []);
       }
 
+      // Fetch subjects for admin/facilitator to create assessments
+      const { data: subjectsData } = await supabase
+        .from('subjects')
+        .select(`
+          *,
+          department:departments(name),
+          facilitator:users(first_name, last_name)
+        `)
+        .order('name');
+
+      if (subjectsData) {
+        setSubjects(subjectsData);
+      }
+
+      // Fetch all submissions for admin/facilitator to verify
+      const { data: submissionsData } = await supabase
+        .from('student_assessment_marks')
+        .select(`
+          *,
+          student:users!student_id(id, first_name, last_name, email),
+          assessment:internal_assessments(id, ia_number, subject:subjects(name, code))
+        `)
+        .order('submitted_at', { ascending: false });
+
+      if (submissionsData) {
+        setAllSubmissions(submissionsData);
+        setStudentMarks(submissionsData);
+      }
+
+      // Fetch all learners for mark entry dropdown
+      const { data: learnersData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'learner')
+        .order('first_name');
+
+      if (learnersData) {
+        setLearners(learnersData);
+      }
+
       await fetchLeaderboard();
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -266,7 +350,7 @@ export default function AssessmentsPage() {
         (assessment) =>
           assessment.subject?.name?.toLowerCase().includes(query) ||
           assessment.subject?.code?.toLowerCase().includes(query) ||
-          `IA ${assessment.ia_number}`.toLowerCase().includes(query)
+          (assessment.notes || '').toLowerCase().includes(query)
       );
     }
 
@@ -280,6 +364,32 @@ export default function AssessmentsPage() {
 
     setFilteredAssessments(filtered);
   }, [searchQuery, selectedStatus, assessments]);
+
+  // Fetch departments for create form
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      const { data } = await supabase.from('departments').select('*').order('name');
+      if (data) setDepartments(data);
+    };
+    fetchDepartments();
+  }, [supabase]);
+
+  // Filter subjects when department changes
+  useEffect(() => {
+    const fetchSubjectsByDept = async () => {
+      if (!createFormData.department_id) {
+        setFilteredSubjects([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('subjects')
+        .select('*')
+        .eq('department_id', createFormData.department_id)
+        .order('name');
+      if (data) setFilteredSubjects(data);
+    };
+    fetchSubjectsByDept();
+  }, [createFormData.department_id, supabase]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -392,6 +502,192 @@ export default function AssessmentsPage() {
     setIsUploadModalOpen(true);
   };
 
+  const handleCreateAssessment = async () => {
+    if (!createFormData.subject_id || !createFormData.assessment_type || !createFormData.scheduled_date) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const iaNum = parseInt(createFormData.assessment_type);
+      const assessmentType = ASSESSMENT_TYPES.find(t => t.value === createFormData.assessment_type);
+      const assessmentNotes = assessmentType?.label + (createFormData.notes ? ' | ' + createFormData.notes : '');
+
+      const { error } = await supabase.from('internal_assessments').insert({
+        subject_id: createFormData.subject_id,
+        ia_number: iaNum,
+        scheduled_date: createFormData.scheduled_date,
+        max_marks: parseInt(createFormData.max_marks) || 20,
+        notes: assessmentNotes,
+        is_completed: false,
+      });
+
+      if (error) {
+        console.error('Error creating assessment:', JSON.stringify(error));
+        toast.error('Failed to create assessment');
+        return;
+      }
+
+      toast.success('Assessment created successfully! Learners will see this in their announcements.');
+      setIsCreateModalOpen(false);
+      setCreateFormData({ department_id: '', subject_id: '', assessment_type: '', max_marks: '20', scheduled_date: '', notes: '' });
+      fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifySubmission = async (submissionId: string, verified: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('student_assessment_marks')
+        .update({ verified })
+        .eq('id', submissionId);
+
+      if (error) {
+        toast.error('Failed to update verification status');
+        return;
+      }
+
+      toast.success(verified ? 'Submission verified!' : 'Verification removed');
+      fetchData();
+      fetchLeaderboard();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
+
+  const handleSaveMarks = async () => {
+    if (!markEntryForm.student_id || !markEntryForm.assessment_id || !markEntryForm.marks_obtained) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    const marks = parseFloat(markEntryForm.marks_obtained);
+    const maxMarks = parseFloat(markEntryForm.max_marks);
+
+    if (isNaN(marks) || marks < 0 || marks > maxMarks) {
+      toast.error(`Marks must be between 0 and ${maxMarks}`);
+      return;
+    }
+
+    setSavingMarks(true);
+    try {
+      // Check if mark already exists for this student and assessment
+      const { data: existing } = await supabase
+        .from('student_assessment_marks')
+        .select('id')
+        .eq('student_id', markEntryForm.student_id)
+        .eq('assessment_id', markEntryForm.assessment_id)
+        .single();
+
+      if (existing) {
+        // Update existing mark
+        const { error } = await supabase
+          .from('student_assessment_marks')
+          .update({
+            marks_obtained: marks,
+            max_marks: maxMarks,
+            verified: true,
+          })
+          .eq('id', existing.id);
+
+        if (error) {
+          toast.error('Failed to update marks');
+          return;
+        }
+        toast.success('Marks updated successfully!');
+      } else {
+        // Insert new mark
+        const { error } = await supabase
+          .from('student_assessment_marks')
+          .insert({
+            student_id: markEntryForm.student_id,
+            assessment_id: markEntryForm.assessment_id,
+            marks_obtained: marks,
+            max_marks: maxMarks,
+            verified: true,
+            submitted_at: new Date().toISOString(),
+          });
+
+        if (error) {
+          toast.error('Failed to save marks');
+          return;
+        }
+        toast.success('Marks saved successfully!');
+      }
+
+      // Reset form
+      setMarkEntryForm({
+        student_id: '',
+        assessment_id: '',
+        marks_obtained: '',
+        max_marks: '100',
+      });
+      fetchData();
+      fetchLeaderboard();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setSavingMarks(false);
+    }
+  };
+
+  const handleMarkAssessmentComplete = async (assessmentId: string, completed: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('internal_assessments')
+        .update({
+          is_completed: completed,
+          conducted_date: completed ? new Date().toISOString().split('T')[0] : null,
+        })
+        .eq('id', assessmentId);
+
+      if (error) {
+        toast.error('Failed to update assessment status');
+        return;
+      }
+
+      toast.success(completed ? 'Assessment marked as completed!' : 'Assessment marked as pending');
+      fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
+
+  const handleDeleteAssessment = async (assessmentId: string) => {
+    if (!confirm('Are you sure you want to delete this assessment? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('internal_assessments')
+        .delete()
+        .eq('id', assessmentId);
+
+      if (error) {
+        toast.error('Failed to delete assessment');
+        return;
+      }
+
+      toast.success('Assessment deleted successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
+
+  const isAdminOrFacilitator = userRole === 'admin' || userRole === 'super_admin' || userRole === 'facilitator';
+
   const totalAssessments = assessments.length;
   const completedAssessments = assessments.filter(a => a.is_completed).length;
   const mySubmittedCount = mySubmissions.length;
@@ -410,14 +706,30 @@ export default function AssessmentsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Back Button */}
+        <BackButton />
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in-up">
           <div>
-            <h1 className="text-3xl font-bold text-gradient">My Assessments</h1>
+            <h1 className="text-3xl font-bold text-gradient">
+              {isAdminOrFacilitator ? 'Assessments Management' : 'My Assessments'}
+            </h1>
             <p className="text-muted-foreground mt-1">
-              Upload your assessment papers and track your rankings
+              {isAdminOrFacilitator
+                ? 'Create assessments and verify student submissions'
+                : 'Upload your assessment papers and track your rankings'}
             </p>
           </div>
+          {isAdminOrFacilitator && (
+            <Button
+              className="gradient-bg text-white"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create Assessment
+            </Button>
+          )}
         </div>
 
         {/* Stats */}
@@ -465,16 +777,36 @@ export default function AssessmentsPage() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="glass-card p-1 bg-white/70 dark:bg-gray-800/70">
-            <TabsTrigger
-              value="my-assessments"
-              className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md"
-            >
-              <ClipboardCheck className="mr-2 h-4 w-4" />
-              Assessments
-            </TabsTrigger>
+            {isAdminOrFacilitator && (
+              <TabsTrigger
+                value="manage"
+                className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white data-[state=active]:shadow-md"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Manage
+              </TabsTrigger>
+            )}
+            {isAdminOrFacilitator && (
+              <TabsTrigger
+                value="enter-marks"
+                className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white data-[state=active]:shadow-md"
+              >
+                <PenLine className="mr-2 h-4 w-4" />
+                Enter Marks
+              </TabsTrigger>
+            )}
+            {!isAdminOrFacilitator && (
+              <TabsTrigger
+                value="my-assessments"
+                className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+              >
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                Assessments
+              </TabsTrigger>
+            )}
             <TabsTrigger
               value="leaderboard"
-              className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+              className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-[#0b6d41] data-[state=active]:text-white data-[state=active]:shadow-md"
             >
               <Trophy className="mr-2 h-4 w-4" />
               Leaderboard
@@ -556,7 +888,7 @@ export default function AssessmentsPage() {
                       </div>
 
                       <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 mb-1">
-                        IA {assessment.ia_number}
+                        {assessment.notes || 'Assessment ' + assessment.ia_number}
                       </h3>
                       <p className="text-muted-foreground text-sm mb-3">
                         {assessment.subject?.name || 'Unknown Subject'}
@@ -854,12 +1186,382 @@ export default function AssessmentsPage() {
               </>
             )}
           </TabsContent>
+
+          {/* Manage Tab (Admin/Facilitator) */}
+          {isAdminOrFacilitator && (
+            <TabsContent value="manage" className="space-y-4">
+              <div className="glass-card rounded-2xl overflow-hidden">
+                <div className="p-5 border-b border-white/30 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">All Assessments</h3>
+                  <p className="text-sm text-muted-foreground">{assessments.length} assessments created</p>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {assessments.length === 0 ? (
+                    <div className="p-12 text-center">
+                      <ClipboardCheck className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                      <p className="text-muted-foreground">No assessments created yet</p>
+                      <Button
+                        className="mt-4 gradient-bg text-white"
+                        onClick={() => setIsCreateModalOpen(true)}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create First Assessment
+                      </Button>
+                    </div>
+                  ) : (
+                    assessments.map((assessment, index) => (
+                      <div
+                        key={assessment.id}
+                        className="p-4 flex items-center justify-between hover:bg-white/40 dark:hover:bg-white/10 transition-colors animate-fade-in-up"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 rounded-xl bg-gradient-to-r from-[#0b6d41] to-[#095232]">
+                            <ClipboardCheck className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-semibold">{assessment.notes || 'Assessment ' + assessment.ia_number} - {assessment.subject?.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Scheduled: {format(new Date(assessment.scheduled_date), 'MMM d, yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className={assessment.is_completed ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}>
+                            {assessment.is_completed ? 'Completed' : 'Pending'}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleMarkAssessmentComplete(assessment.id, !assessment.is_completed)}
+                          >
+                            {assessment.is_completed ? 'Mark Pending' : 'Mark Complete'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteAssessment(assessment.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          )}
+
+          {/* Enter Marks Tab (Admin/Facilitator) */}
+          {isAdminOrFacilitator && (
+            <TabsContent value="enter-marks" className="space-y-4">
+              {/* Mark Entry Form - Only for Admin and Facilitator, not Super Admin */}
+              {(userRole === 'admin' || userRole === 'facilitator') && (
+                <div className="glass-card rounded-2xl overflow-hidden">
+                  <div className="p-5 border-b border-white/30 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
+                        <PenLine className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Enter Marks</h3>
+                        <p className="text-sm text-muted-foreground">Add or update marks for learners</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label>Select Learner *</Label>
+                        <Select
+                          value={markEntryForm.student_id}
+                          onValueChange={(value) => setMarkEntryForm({ ...markEntryForm, student_id: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a learner" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {learners.map((learner) => (
+                              <SelectItem key={learner.id} value={learner.id}>
+                                {learner.first_name} {learner.last_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Select Assessment *</Label>
+                        <Select
+                          value={markEntryForm.assessment_id}
+                          onValueChange={(value) => setMarkEntryForm({ ...markEntryForm, assessment_id: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose an assessment" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {assessments.map((assessment) => (
+                              <SelectItem key={assessment.id} value={assessment.id}>
+                                {assessment.subject?.name} - IA {assessment.ia_number}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Marks Obtained *</Label>
+                        <Input
+                          type="number"
+                          placeholder="Enter marks"
+                          value={markEntryForm.marks_obtained}
+                          onChange={(e) => setMarkEntryForm({ ...markEntryForm, marks_obtained: e.target.value })}
+                          min="0"
+                          max={markEntryForm.max_marks}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Max Marks</Label>
+                        <Input
+                          type="number"
+                          placeholder="100"
+                          value={markEntryForm.max_marks}
+                          onChange={(e) => setMarkEntryForm({ ...markEntryForm, max_marks: e.target.value })}
+                          min="1"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <Button
+                        onClick={handleSaveMarks}
+                        disabled={savingMarks}
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                      >
+                        {savingMarks ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Save Marks
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* All Student Marks List */}
+              <div className="glass-card rounded-2xl overflow-hidden">
+                <div className="p-5 border-b border-white/30 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">All Student Marks</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {userRole === 'super_admin' ? 'View all learner marks (read-only)' : 'View and manage learner marks'}
+                  </p>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {studentMarks.length === 0 ? (
+                    <div className="p-12 text-center">
+                      <PenLine className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                      <p className="text-muted-foreground">No marks entered yet</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {userRole === 'super_admin'
+                          ? 'Marks will appear here once admin or facilitator enters them'
+                          : 'Use the form above to enter marks for learners'}
+                      </p>
+                    </div>
+                  ) : (
+                    studentMarks.map((submission: any, index) => (
+                      <div
+                        key={submission.id}
+                        className="p-4 flex items-center justify-between hover:bg-white/40 dark:hover:bg-white/10 transition-colors animate-fade-in-up"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500">
+                            <Users className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-semibold">
+                              {submission.student?.first_name} {submission.student?.last_name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {submission.assessment?.subject?.name || 'Unknown'} - IA {submission.assessment?.ia_number}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {submission.submitted_at && format(new Date(submission.submitted_at), 'MMM d, yyyy h:mm a')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right mr-2">
+                            <p className="font-bold text-lg">
+                              {submission.marks_obtained !== null ? `${submission.marks_obtained}/${submission.max_marks}` : 'Not graded'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {submission.marks_obtained !== null && submission.max_marks
+                                ? `${((submission.marks_obtained / submission.max_marks) * 100).toFixed(1)}%`
+                                : ''}
+                            </p>
+                          </div>
+                          {submission.paper_url && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(submission.paper_url, '_blank')}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          )}
+                          <Badge className={submission.verified ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}>
+                            {submission.verified ? 'Verified' : 'Pending'}
+                          </Badge>
+                          {(userRole === 'admin' || userRole === 'facilitator') && (
+                            <Button
+                              size="sm"
+                              variant={submission.verified ? 'outline' : 'default'}
+                              className={!submission.verified ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
+                              onClick={() => handleVerifySubmission(submission.id, !submission.verified)}
+                            >
+                              {submission.verified ? 'Unverify' : 'Verify'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          )}
+
         </Tabs>
       </div>
 
+      {/* Create Assessment Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl max-w-[calc(100vw-1rem)] sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+              Create New Assessment
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Create an internal assessment - learners will be notified
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Department *</Label>
+              <Select
+                value={createFormData.department_id}
+                onValueChange={(value) => setCreateFormData({ ...createFormData, department_id: value, subject_id: '' })}
+              >
+                <SelectTrigger className="bg-gray-50 dark:bg-gray-800">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Subject *</Label>
+              <Select
+                value={createFormData.subject_id}
+                onValueChange={(value) => setCreateFormData({ ...createFormData, subject_id: value })}
+                disabled={!createFormData.department_id}
+              >
+                <SelectTrigger className="bg-gray-50 dark:bg-gray-800">
+                  <SelectValue placeholder={createFormData.department_id ? "Select subject" : "Select department first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredSubjects.map((subj) => (
+                    <SelectItem key={subj.id} value={subj.id}>{subj.name} ({subj.code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Assessment Type *</Label>
+              <Select
+                value={createFormData.assessment_type}
+                onValueChange={(value) => setCreateFormData({ ...createFormData, assessment_type: value })}
+              >
+                <SelectTrigger className="bg-gray-50 dark:bg-gray-800">
+                  <SelectValue placeholder="Select assessment type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ASSESSMENT_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Scheduled Date *</Label>
+                <Input
+                  type="date"
+                  value={createFormData.scheduled_date}
+                  onChange={(e) => setCreateFormData({ ...createFormData, scheduled_date: e.target.value })}
+                  className="bg-gray-50 dark:bg-gray-800"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Max Marks</Label>
+                <Input
+                  type="number"
+                  value={createFormData.max_marks}
+                  onChange={(e) => setCreateFormData({ ...createFormData, max_marks: e.target.value })}
+                  placeholder="20"
+                  className="bg-gray-50 dark:bg-gray-800"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Notes (optional)</Label>
+              <Textarea
+                value={createFormData.notes}
+                onChange={(e) => setCreateFormData({ ...createFormData, notes: e.target.value })}
+                placeholder="Any additional notes..."
+                className="bg-gray-50 dark:bg-gray-800"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="gradient-bg text-white"
+              onClick={handleCreateAssessment}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Assessment
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Upload Paper Modal */}
       <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gradient">
               Upload Assessment Paper
@@ -867,7 +1569,7 @@ export default function AssessmentsPage() {
             <DialogDescription>
               {selectedAssessment && (
                 <>
-                  IA {selectedAssessment.ia_number} - {selectedAssessment.subject?.name}
+                  {selectedAssessment.notes || 'Assessment ' + selectedAssessment.ia_number} - {selectedAssessment.subject?.name}
                 </>
               )}
             </DialogDescription>
@@ -980,7 +1682,7 @@ export default function AssessmentsPage() {
 
       {/* View Paper Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gradient">
               Your Submitted Paper

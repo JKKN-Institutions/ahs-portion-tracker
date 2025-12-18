@@ -32,6 +32,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { BackButton } from '@/components/ui/back-button';
 
 interface LessonPlan {
   id: string;
@@ -145,6 +146,9 @@ export default function LessonPlansPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Back Button */}
+        <BackButton />
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in-up">
           <div>

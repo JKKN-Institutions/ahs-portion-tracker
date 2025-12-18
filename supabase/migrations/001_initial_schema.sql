@@ -487,6 +487,11 @@ CREATE TRIGGER update_projects_updated_at
     BEFORE UPDATE ON projects
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert sample academic year
+-- Insert academic years
 INSERT INTO academic_years (name, start_date, end_date, is_active)
-VALUES ('2024-2025', '2024-07-01', '2025-05-31', true);
+VALUES
+    ('2022-2023', '2022-07-01', '2023-05-31', false),
+    ('2023-2024', '2023-07-01', '2024-05-31', false),
+    ('2024-2025', '2024-07-01', '2025-05-31', true),
+    ('2025-2026', '2025-07-01', '2026-05-31', false),
+    ('2026-2027', '2026-07-01', '2027-05-31', false);

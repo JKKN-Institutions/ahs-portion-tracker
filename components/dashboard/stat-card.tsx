@@ -38,15 +38,15 @@ export function StatCard({
   return (
     <div
       className={cn(
-        'glass-card rounded-2xl p-6 float-card transition-all duration-300 group',
+        'glass-card rounded-2xl p-3 sm:p-6 float-card transition-all duration-300 group',
         className
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-2 flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</p>
           <div className="flex items-baseline space-x-2">
-            <p className="text-3xl font-bold text-gradient">{value}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gradient">{value}</p>
             {trend && (
               <span
                 className={cn(
@@ -66,12 +66,12 @@ export function StatCard({
         </div>
         <div
           className={cn(
-            'p-3 rounded-xl bg-gradient-to-br shadow-lg group-hover:animate-float-rotate transition-transform',
+            'p-2 sm:p-3 rounded-xl bg-gradient-to-br shadow-lg group-hover:animate-float-rotate transition-transform flex-shrink-0',
             gradientStyles[gradient],
             iconClassName
           )}
         >
-          <div className="text-white">{icon}</div>
+          <div className="text-white [&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-6 sm:[&>svg]:h-6">{icon}</div>
         </div>
       </div>
 

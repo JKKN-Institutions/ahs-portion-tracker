@@ -131,21 +131,21 @@ export default function LandingPage() {
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
+      <nav className="fixed top-0 left-0 right-0 z-50 px-2 sm:px-4 py-2 sm:py-3">
         <div className="max-w-7xl mx-auto">
           <div
-            className={`flex items-center justify-between px-6 py-3 rounded-xl transition-all duration-300 ${
+            className={`flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 rounded-xl transition-all duration-300 ${
               scrollY > 50
                 ? 'bg-slate-900/95 backdrop-blur-xl border border-white/10 shadow-xl'
                 : 'bg-slate-900/50 backdrop-blur-sm'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#0b6d41] flex items-center justify-center shadow-lg">
-                <GraduationCap className="h-5 w-5 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-[#0b6d41] flex items-center justify-center shadow-lg">
+                <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
               <div>
-                <span className="text-lg font-semibold text-white">
+                <span className="text-base sm:text-lg font-semibold text-white">
                   AHS Tracker
                 </span>
                 <span className="hidden sm:block text-xs text-slate-400">Academic Excellence</span>
@@ -210,24 +210,24 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-24 pb-20 px-4 z-10">
+      <section className="relative min-h-screen flex items-center pt-16 sm:pt-20 pb-12 sm:pb-16 px-3 sm:px-6 z-10">
         <div className="max-w-7xl mx-auto w-full">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
             {/* Left Content */}
             <div className="text-center lg:text-left">
               {/* Main Headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight text-white">
+              <h1 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold mb-4 sm:mb-6 leading-tight text-white px-2 sm:px-0">
                 Empowering{' '}
                 <span className="text-[#fbbe00]">Academic Excellence</span>
               </h1>
 
-              <p className="text-lg sm:text-xl text-slate-300 mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+              <p className="text-sm sm:text-base md:text-lg text-slate-300 mb-6 sm:mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed px-2 sm:px-0">
                 A comprehensive academic tracking system designed to help institutions monitor curriculum progress,
                 analyze performance, and drive student success.
               </p>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-12">
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 mb-8 sm:mb-10 px-2 sm:px-0">
                 <Link href="/auth/login">
                   <Button
                     size="lg"
@@ -240,40 +240,42 @@ export default function LandingPage() {
               </div>
 
               {/* Trust Indicators */}
-              <div className="flex items-center justify-center lg:justify-start gap-8">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">100+</p>
-                  <p className="text-sm text-slate-400">Students</p>
+              <div className="flex items-center justify-center lg:justify-start gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
+                <div className="text-center lg:text-left">
+                  <p className="text-xl sm:text-2xl font-bold text-white">100+</p>
+                  <p className="text-xs sm:text-sm text-slate-400">Learners</p>
                 </div>
-                <div className="w-px h-10 bg-white/20" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">50+</p>
-                  <p className="text-sm text-slate-400">Facilitators</p>
+                <div className="w-px h-8 sm:h-10 bg-white/20" />
+                <div className="text-center lg:text-left">
+                  <p className="text-xl sm:text-2xl font-bold text-white">50+</p>
+                  <p className="text-xs sm:text-sm text-slate-400">Facilitators</p>
                 </div>
-                <div className="w-px h-10 bg-white/20" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">99.9%</p>
-                  <p className="text-sm text-slate-400">Uptime</p>
+                <div className="w-px h-8 sm:h-10 bg-white/20" />
+                <div className="text-center lg:text-left">
+                  <p className="text-xl sm:text-2xl font-bold text-white">99.9%</p>
+                  <p className="text-xs sm:text-sm text-slate-400">Uptime</p>
                 </div>
               </div>
             </div>
 
             {/* Right Content - Allied Health Sciences Image */}
-            <div className="relative hidden lg:block">
+            <div className="relative hidden lg:flex lg:items-center lg:justify-center">
               {/* Floating decorative elements */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#0b6d41]/20 rounded-full blur-3xl" />
-              <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl" />
+              <div className="absolute -top-8 -right-8 w-40 h-40 bg-[#0b6d41]/20 rounded-full blur-3xl" />
+              <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl" />
 
               {/* Image Container */}
-              <div className="relative">
-                <Image
-                  src="/ahs-hero.png"
-                  alt="Allied Health Sciences"
-                  width={550}
-                  height={450}
-                  className="w-[550px] h-[450px] object-cover rounded-2xl"
-                  priority
-                />
+              <div className="relative w-full">
+                <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+                  <Image
+                    src="https://images.unsplash.com/photo-1576671081837-49000212a370?w=1000&h=800&fit=crop&q=80"
+                    alt="Allied Health Sciences - Medical Technology and Innovation"
+                    width={1000}
+                    height={800}
+                    className="w-full h-auto object-cover"
+                    priority
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -284,8 +286,8 @@ export default function LandingPage() {
       <section className="py-16 px-4 relative z-10 bg-slate-900/50">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-8">
-            <p className="text-[#fbbe00] font-medium mb-2">Your Success - Our Tradition</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-white">JKKN Educational Institutions</h2>
+            <p className="text-[#fbbe00] font-medium mb-3">Your Success - Our Tradition</p>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#0b6d41]">JKKN Institutions</h2>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="p-6 md:p-8 rounded-2xl bg-slate-800/50 backdrop-blur-sm border border-white/10">
@@ -423,16 +425,13 @@ export default function LandingPage() {
       <section className="py-20 px-4 relative z-10">
         <div className="max-w-4xl mx-auto">
           <div className="p-10 md:p-12 rounded-2xl bg-[#0b6d41] text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-8">
               Ready to transform your institution?
             </h2>
-            <p className="text-white/90 mb-8 max-w-xl mx-auto">
-              Join educators already using AHS Tracker to achieve academic excellence.
-            </p>
             <div className="flex items-center justify-center">
               <Link href="/auth/login">
                 <Button size="lg" className="h-12 px-8 bg-white text-[#0b6d41] hover:bg-white/90 font-medium rounded-lg">
-                  Get Started Free
+                  Get Started
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>

@@ -13,7 +13,6 @@ import {
   BarChart3,
   Building2,
   GraduationCap,
-  UserPlus,
   Shield,
   UserCog,
   Megaphone,
@@ -33,7 +32,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  // Dashboard items - 4 dashboards
+  // Super Admin Dashboard (separate)
   {
     title: 'Super Admin Dashboard',
     href: '/dashboard/super-admin',
@@ -41,91 +40,50 @@ const navItems: NavItem[] = [
     roles: ['super_admin'],
     section: 'Dashboards',
   },
+  // Admin/Facilitator Dashboard with portion management
   {
-    title: 'Admin Dashboard',
-    href: '/dashboard/admin',
+    title: 'Admin/Facilitator Dashboard',
+    href: '/dashboard',
     icon: BarChart3,
-    roles: ['super_admin', 'admin'],
-    section: 'Dashboards',
-  },
-  {
-    title: 'Facilitator Dashboard',
-    href: '/dashboard/facilitator',
-    icon: LayoutDashboard,
     roles: ['super_admin', 'admin', 'facilitator'],
     section: 'Dashboards',
   },
   {
     title: 'My Dashboard',
-    href: '/dashboard/student',
+    href: '/dashboard/learner',
     icon: GraduationCap,
-    roles: ['student'],
+    roles: ['learner'],
     section: 'Dashboards',
   },
   {
-    title: 'Student Dashboard',
-    href: '/dashboard/student',
+    title: 'Learner Dashboard',
+    href: '/dashboard/learner',
     icon: GraduationCap,
     roles: ['super_admin', 'admin', 'facilitator'],
     section: 'Dashboards',
   },
-  // Academic items - Available to all roles including students
+  // Academic items - Only for learners (others access via dashboards)
   {
     title: 'Assessments',
     href: '/dashboard/assessments',
     icon: ClipboardCheck,
-    roles: ['facilitator', 'super_admin', 'admin', 'student'],
+    roles: ['learner'],
     section: 'Academic',
   },
   {
     title: 'Projects',
     href: '/dashboard/projects',
     icon: FolderKanban,
-    roles: ['facilitator', 'super_admin', 'admin', 'student'],
+    roles: ['learner'],
     section: 'Academic',
   },
-  // Management items
-  {
-    title: 'Departments',
-    href: '/dashboard/admin/departments',
-    icon: Building2,
-    roles: ['super_admin'],
-    section: 'Management',
-  },
-  {
-    title: 'Facilitators',
-    href: '/dashboard/admin/facilitators',
-    icon: Users,
-    roles: ['super_admin', 'admin'],
-    section: 'Management',
-  },
-  {
-    title: 'Students',
-    href: '/dashboard/admin/students',
-    icon: GraduationCap,
-    roles: ['super_admin', 'admin'],
-    section: 'Management',
-  },
+
   // Users items - Admin can add facilitators and students but not super_admin
   {
     title: 'All Users',
-    href: '/dashboard/admin/users',
+    href: '/dashboard/users',
     icon: Users,
     roles: ['super_admin', 'admin'],
-    section: 'Users',
-  },
-  {
-    title: 'Add User',
-    href: '/dashboard/admin/users/add',
-    icon: UserPlus,
-    roles: ['super_admin', 'admin'],
-    section: 'Users',
-  },
-  {
-    title: 'Roles',
-    href: '/dashboard/admin/roles',
-    icon: Shield,
-    roles: ['super_admin'],
     section: 'Users',
   },
   // Communication
@@ -133,7 +91,7 @@ const navItems: NavItem[] = [
     title: 'Announcements',
     href: '/dashboard/announcements',
     icon: Megaphone,
-    roles: ['super_admin', 'admin', 'facilitator', 'student'],
+    roles: ['super_admin', 'admin', 'facilitator', 'learner'],
     section: 'Communication',
   },
   // Settings
@@ -141,17 +99,17 @@ const navItems: NavItem[] = [
     title: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
-    roles: ['super_admin', 'admin', 'facilitator', 'student'],
+    roles: ['super_admin', 'admin', 'facilitator', 'learner'],
   },
 ];
 
 export function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
 
-  // Normalize role - treat unknown roles as 'student'
-  const effectiveRole: UserRole = ['super_admin', 'admin', 'facilitator', 'student'].includes(userRole)
+  // Normalize role - treat unknown roles as 'learner'
+  const effectiveRole: UserRole = ['super_admin', 'admin', 'facilitator', 'learner'].includes(userRole)
     ? userRole
-    : 'student';
+    : 'learner';
 
   // Filter items based on role
   const filteredItems = navItems.filter((item) => item.roles.includes(effectiveRole));
@@ -172,7 +130,22 @@ export function Sidebar({ userRole }: SidebarProps) {
   });
 
   const renderNavLink = (item: NavItem) => {
-    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+    // Special handling to ensure only exact matches or direct children are active
+    let isActive = false;
+
+    if (item.href === '/dashboard') {
+      // /dashboard should only be active for exact match
+      isActive = pathname === '/dashboard';
+    } else if (item.href === '/dashboard/super-admin') {
+      // /dashboard/super-admin should only be active for exact match
+      isActive = pathname === '/dashboard/super-admin';
+    } else if (item.href === '/dashboard/learner') {
+      // /dashboard/learner should only be active for exact match
+      isActive = pathname === '/dashboard/learner';
+    } else {
+      // For all other routes, match exact path or children
+      isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+    }
     return (
       <Link
         key={item.href}
@@ -223,7 +196,7 @@ export function Sidebar({ userRole }: SidebarProps) {
           )}>
             {effectiveRole === 'super_admin' ? 'Super Admin' :
              effectiveRole === 'admin' ? 'Admin' :
-             effectiveRole === 'facilitator' ? 'Facilitator' : 'Student'}
+             effectiveRole === 'facilitator' ? 'Facilitator' : 'Learner'}
           </div>
         </div>
 
@@ -245,18 +218,6 @@ export function Sidebar({ userRole }: SidebarProps) {
                 </p>
               </div>
               {groupedItems['Academic'].map(renderNavLink)}
-            </>
-          )}
-
-          {/* Management Section */}
-          {groupedItems['Management'] && groupedItems['Management'].length > 0 && (
-            <>
-              <div className="pt-4 pb-2">
-                <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Management
-                </p>
-              </div>
-              {groupedItems['Management'].map(renderNavLink)}
             </>
           )}
 

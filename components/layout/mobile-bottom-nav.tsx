@@ -33,7 +33,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   const getNavItems = (): NavItem[] => {
     const baseItems: NavItem[] = [];
 
-    // Dashboard - role specific
+    // Super Admin has separate dashboard
     if (userRole === 'super_admin') {
       baseItems.push({
         title: 'Dashboard',
@@ -41,48 +41,25 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
         icon: Shield,
         roles: ['super_admin'],
       });
-    } else if (userRole === 'admin') {
+    // Admin & Facilitator share unified dashboard
+    } else if (userRole === 'admin' || userRole === 'facilitator') {
       baseItems.push({
         title: 'Dashboard',
-        href: '/dashboard/admin',
-        icon: BarChart3,
-        roles: ['admin'],
-      });
-    } else if (userRole === 'facilitator') {
-      baseItems.push({
-        title: 'Dashboard',
-        href: '/dashboard/facilitator',
+        href: '/dashboard',
         icon: LayoutDashboard,
-        roles: ['facilitator'],
+        roles: ['admin', 'facilitator'],
       });
     } else {
       baseItems.push({
         title: 'Dashboard',
-        href: '/dashboard/student',
+        href: '/dashboard/learner',
         icon: GraduationCap,
-        roles: ['student'],
+        roles: ['learner'],
       });
     }
 
-    // Portions/Academic
-    if (userRole === 'facilitator') {
-      baseItems.push({
-        title: 'Portions',
-        href: '/dashboard/portions',
-        icon: BookOpen,
-        roles: ['facilitator'],
-      });
-    } else if (userRole === 'super_admin' || userRole === 'admin') {
-      baseItems.push({
-        title: 'Portions',
-        href: '/dashboard/admin/portions',
-        icon: BookOpen,
-        roles: ['super_admin', 'admin'],
-      });
-    }
-
-    // Assessments - for non-students
-    if (userRole !== 'student') {
+    // Assessments - for non-learners
+    if (userRole !== 'learner') {
       baseItems.push({
         title: 'Assessments',
         href: '/dashboard/assessments',
@@ -96,7 +73,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       title: 'Announce',
       href: '/dashboard/announcements',
       icon: Megaphone,
-      roles: ['super_admin', 'admin', 'facilitator', 'student'],
+      roles: ['super_admin', 'admin', 'facilitator', 'learner'],
     });
 
     // Settings - for everyone
@@ -104,7 +81,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       title: 'Settings',
       href: '/dashboard/settings',
       icon: Settings,
-      roles: ['super_admin', 'admin', 'facilitator', 'student'],
+      roles: ['super_admin', 'admin', 'facilitator', 'learner'],
     });
 
     return baseItems.filter(item => item.roles.includes(userRole));
@@ -113,50 +90,75 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   const navItems = getNavItems();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-white/20 pb-safe">
-      <div className="flex items-center justify-around h-16 px-2">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex flex-col items-center justify-center flex-1 h-full px-1 py-2 transition-all duration-200',
-                isActive
-                  ? 'text-purple-600'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              )}
-            >
-              <div
+    <nav
+      className="md:hidden fixed bottom-2 left-2 right-2 z-50"
+      role="navigation"
+      aria-label="Mobile bottom navigation"
+    >
+      {/* Sleek Floating Bottom Navigation Container */}
+      <div className="relative bg-white/90 dark:bg-gray-900/90 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.08)] border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-xl overflow-hidden">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-50/20 to-transparent dark:from-gray-950/10 pointer-events-none" />
+
+        <div className="relative flex items-center justify-around h-[54px] px-1">
+          {navItems.map((item, index) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
                 className={cn(
-                  'p-1.5 rounded-xl transition-all duration-200',
+                  'relative flex flex-col items-center justify-center flex-1 h-full px-0.5 py-1 min-w-0',
+                  'transition-all duration-200 rounded-full group',
+                  'focus:outline-none focus:ring-1 focus:ring-purple-400',
                   isActive
-                    ? 'gradient-bg shadow-lg shadow-purple-500/25'
-                    : 'bg-transparent'
+                    ? 'opacity-100'
+                    : 'opacity-55 hover:opacity-90 active:scale-95'
                 )}
+                aria-label={item.title}
+                aria-current={isActive ? 'page' : undefined}
               >
-                <item.icon
+                {/* Active Background - Compact Pill Shape */}
+                {isActive && (
+                  <div className="absolute inset-y-1 inset-x-0.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full -z-10 shadow-md shadow-purple-500/25" />
+                )}
+
+                {/* Icon Container - Sleek Size */}
+                <div
                   className={cn(
-                    'h-5 w-5 transition-transform',
-                    isActive ? 'text-white scale-110' : ''
+                    'flex items-center justify-center transition-all duration-200',
+                    isActive
+                      ? 'text-white'
+                      : 'text-gray-600 dark:text-gray-400 group-hover:text-purple-500 dark:group-hover:text-purple-400'
                   )}
-                />
-              </div>
-              <span
-                className={cn(
-                  'text-[10px] mt-1 font-medium truncate max-w-[60px]',
-                  isActive ? 'text-purple-600 dark:text-purple-400' : ''
-                )}
-              >
-                {item.title}
-              </span>
-              {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 rounded-full bg-purple-600 animate-pulse" />
-              )}
-            </Link>
-          );
-        })}
+                >
+                  <item.icon
+                    className={cn(
+                      'transition-all duration-200',
+                      'w-5 h-5', // 20px - sleek icon size
+                      isActive ? 'scale-105' : 'scale-100 group-hover:scale-105'
+                    )}
+                    strokeWidth={isActive ? 2.5 : 2}
+                    aria-hidden="true"
+                  />
+                </div>
+
+                {/* Label Text - Compact */}
+                <span
+                  className={cn(
+                    'text-[9px] font-semibold truncate w-full text-center leading-tight mt-0.5',
+                    'transition-all duration-200',
+                    isActive
+                      ? 'text-white'
+                      : 'text-gray-600 dark:text-gray-500 group-hover:text-purple-500 dark:group-hover:text-purple-400'
+                  )}
+                >
+                  {item.title}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
