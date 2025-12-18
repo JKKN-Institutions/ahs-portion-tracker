@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, type LucideProps } from 'lucide-react';
 import { UserRole } from '@/types/database';
 
 interface FABAction {
   id: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<LucideProps>;
   onClick: () => void;
   roles?: UserRole[];
 }

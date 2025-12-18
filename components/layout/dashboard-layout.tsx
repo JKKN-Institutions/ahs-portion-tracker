@@ -105,14 +105,14 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
           label: 'Add User',
           icon: Users,
           onClick: () => router.push('/dashboard/users'),
-          roles: ['super_admin', 'admin'],
+          roles: ['super_admin', 'admin'] as UserRole[],
         },
         {
           id: 'add-subject',
           label: 'Add Subject',
           icon: BookOpen,
           onClick: () => router.push('/dashboard/portions'),
-          roles: ['super_admin', 'admin', 'facilitator'],
+          roles: ['super_admin', 'admin', 'facilitator'] as UserRole[],
         }
       );
     } else if (user?.role === 'admin' || user?.role === 'facilitator') {
@@ -122,21 +122,21 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
           label: 'Add Portion',
           icon: CalendarPlus,
           onClick: () => router.push('/dashboard/portions'),
-          roles: ['admin', 'facilitator'],
+          roles: ['admin', 'facilitator'] as UserRole[],
         },
         {
           id: 'add-lesson',
           label: 'Add Lesson',
           icon: FileText,
           onClick: () => router.push('/dashboard/lesson-plans'),
-          roles: ['admin', 'facilitator'],
+          roles: ['admin', 'facilitator'] as UserRole[],
         },
         {
           id: 'add-assessment',
           label: 'Add Assessment',
           icon: ClipboardCheck,
           onClick: () => router.push('/dashboard/assessments'),
-          roles: ['admin', 'facilitator'],
+          roles: ['admin', 'facilitator'] as UserRole[],
         }
       );
     } else {
@@ -147,7 +147,7 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
           label: 'Assessments',
           icon: ClipboardCheck,
           onClick: () => router.push('/dashboard/assessments'),
-          roles: ['learner'],
+          roles: ['learner'] as UserRole[],
         }
       );
     }

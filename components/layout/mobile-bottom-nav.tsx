@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Shield,
   BarChart3,
+  type LucideProps,
 } from 'lucide-react';
 import { UserRole } from '@/types/database';
 
@@ -22,7 +23,7 @@ interface MobileBottomNavProps {
 interface NavItem {
   title: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<LucideProps>;
   roles: UserRole[];
 }
 
