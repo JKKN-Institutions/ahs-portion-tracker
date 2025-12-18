@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -10,17 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, GraduationCap, BarChart3, Users, Shield, CheckCircle2 } from 'lucide-react';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const router = useRouter();
+function ErrorDisplay({ setError }: { setError: (error: string | null) => void }) {
   const searchParams = useSearchParams();
-  const supabase = createClient();
 
-  // Check for error messages in URL
   useEffect(() => {
     const urlError = searchParams.get('error');
     const urlMessage = searchParams.get('message');
@@ -28,7 +20,19 @@ export default function LoginPage() {
     if (urlError && urlMessage) {
       setError(urlMessage);
     }
-  }, [searchParams]);
+  }, [searchParams, setError]);
+
+  return null;
+}
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +108,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
+      <Suspense fallback={null}>
+        <ErrorDisplay setError={setError} />
+      </Suspense>
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-[#0b6d41] overflow-hidden">
         {/* Background Pattern */}
